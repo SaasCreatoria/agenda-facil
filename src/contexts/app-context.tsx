@@ -66,8 +66,8 @@ interface AppContextType {
   loadingConfiguracao: boolean;
   loadConfiguracao: () => void;
   updateConfiguracao: (newConfig: Partial<ConfiguracaoEmpresa>) => Promise<void>;
-  loadLembretes: () => void;
-  loadAgendamentos: () => void;
+  loadLembretes: () => void; // Re-expose loadLembretes from AppContextType
+  loadAgendamentos: () => void; // Re-expose loadAgendamentos from AppContextType
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -111,15 +111,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     const checkAndSendReminders = () => {
       const now = new Date();
-      lembretesState.lembretes.forEach(lembrete => {
-        if (lembrete.status === 'PENDENTE' && new Date(lembrete.dataEnvioAgendado) <= now) {
-          lembretesState.sendReminder(lembrete);
-        }
-      });
+      // Find the first lembrete that needs processing to avoid multiple rapid updates
+      const lembreteToSend = lembretesState.lembretes.find(lembrete => 
+        lembrete.status === 'PENDENTE' && 
+        new Date(lembrete.dataEnvioAgendado).getTime() <= now.getTime()
+      );
+
+      if (lembreteToSend) {
+        lembretesState.sendReminder(lembreteToSend); 
+        // After this, sendReminder will updateLembreteStatus, which calls setLembretes.
+        // The useEffect will run again due to lembretesState.lembretes changing.
+        // If other reminders are due, the next one will be picked up in the subsequent run.
+      }
     };
 
-    checkAndSendReminders();
-    const intervalId = setInterval(checkAndSendReminders, 5 * 60 * 1000); 
+    checkAndSendReminders(); // Check immediately on load/change
+    const intervalId = setInterval(checkAndSendReminders, 5 * 60 * 1000); // Then check every 5 minutes
 
     return () => clearInterval(intervalId);
   }, [lembretesState.lembretes, lembretesState.sendReminder, lembretesState.loading, configuracaoState.loadingConfiguracao, configuracaoState.configuracao.fusoHorario]);
@@ -172,8 +179,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     loadingConfiguracao: configuracaoState.loading,
     loadConfiguracao: configuracaoState.loadConfiguracao,
     updateConfiguracao: configuracaoState.updateConfiguracao,
-    loadLembretes: lembretesState.loadLembretes,
-    loadAgendamentos: agendamentosState.loadAgendamentos,
+    loadLembretes: lembretesState.loadLembretes, // Expose function to reload lembretes
+    loadAgendamentos: agendamentosState.loadAgendamentos, // Expose function to reload agendamentos
   };
 
   return <AppContext.Provider value={contextValue}>{children}</AppContext.Provider>;
