@@ -13,7 +13,7 @@ import type { Servico, Profissional, AgendamentoCreateDto, ClienteCreateDto, Age
 import { formatDateTime, isValidEmail, isValidPhoneNumber, maskPhoneNumber } from '@/utils/helpers';
 import { checkConflict } from '@/utils/appointment-helpers';
 import { Progress } from '@/components/ui/progress';
-import { ArrowLeft, ArrowRight, CalendarDays, User, Scissors, Clock, CheckCircle, ShieldCheck, UserCircle2 } from 'lucide-react'; // Added ShieldCheck for CAPTCHA
+import { ArrowLeft, ArrowRight, CalendarDays, User, Scissors, Clock, CheckCircle, ShieldCheck, UserCircle2 } from 'lucide-react'; 
 
 interface PublicBookingWizardProps {
   allServicos: Servico[];
@@ -31,6 +31,8 @@ const STEPS = [
   { id: 'confirmacao', title: 'Confirmação', icon: CheckCircle },
 ];
 
+const ANY_PROFESSIONAL_VALUE = "__ANY_PROFESSIONAL__";
+
 export default function PublicBookingWizard({ 
     allServicos, 
     allProfissionais, 
@@ -40,7 +42,7 @@ export default function PublicBookingWizard({
 }: PublicBookingWizardProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [selectedServicoId, setSelectedServicoId] = useState<string>('');
-  const [selectedProfissionalId, setSelectedProfissionalId] = useState<string>(''); // Default to "any"
+  const [selectedProfissionalId, setSelectedProfissionalId] = useState<string>(''); 
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedTime, setSelectedTime] = useState<string>('');
   
@@ -60,9 +62,18 @@ export default function PublicBookingWizard({
   }, [allProfissionais, selectedServico]);
 
   const professionalForTimeSlots = useMemo(() => {
-    if(selectedProfissionalId) return availableProfissionais.find(p => p.id === selectedProfissionalId);
-    if(availableProfissionais.length === 1) return availableProfissionais[0]; 
-    return undefined; 
+    if (selectedProfissionalId && selectedProfissionalId !== ANY_PROFESSIONAL_VALUE) {
+      return availableProfissionais.find(p => p.id === selectedProfissionalId);
+    }
+    // If "any" is selected (either '' initial or explicitly ANY_PROFESSIONAL_VALUE)
+    // and there's only one professional, use that one.
+    if (availableProfissionais.length === 1) {
+      return availableProfissionais[0];
+    }
+    // If "any" is selected and there are multiple professionals,
+    // or if no professional is selected yet (e.g. error case, though Select should prevent this),
+    // then no specific professional is chosen for time slots yet.
+    return undefined;
   }, [availableProfissionais, selectedProfissionalId]);
 
 
@@ -177,7 +188,7 @@ export default function PublicBookingWizard({
   const progressValue = ((currentStep + 1) / STEPS.length) * 100;
   const CurrentIcon = STEPS[currentStep].icon;
   const minDate = new Date();
-  minDate.setDate(minDate.getDate() + 1); // Tomorrow;
+  minDate.setDate(minDate.getDate() + 1); 
   
   return (
     <Card className="w-full max-w-lg mx-auto">
@@ -210,12 +221,12 @@ export default function PublicBookingWizard({
             <Select value={selectedProfissionalId} onValueChange={setSelectedProfissionalId} disabled={!selectedServico || availableProfissionais.length === 0}>
               <SelectTrigger id="profissional"><SelectValue placeholder={!selectedServico ? "Escolha um serviço primeiro" : (availableProfissionais.length === 0 ? "Nenhum disponível p/ este serviço" : "Qualquer um disponível")} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Qualquer um disponível</SelectItem>
+                <SelectItem value={ANY_PROFESSIONAL_VALUE}>Qualquer um disponível</SelectItem>
                 {availableProfissionais.map(p => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
               </SelectContent>
             </Select>
             {selectedServico && availableProfissionais.length === 0 && <p className="text-sm text-destructive mt-1">Nenhum profissional oferece este serviço no momento.</p>}
-            {!selectedProfissionalId && availableProfissionais.length > 1 && <p className="text-sm text-muted-foreground mt-1">Ao selecionar "Qualquer um", o sistema escolherá o primeiro profissional disponível.</p>}
+            {(selectedProfissionalId === '' || selectedProfissionalId === ANY_PROFESSIONAL_VALUE) && availableProfissionais.length > 1 && <p className="text-sm text-muted-foreground mt-1">Ao selecionar "Qualquer um", o sistema escolherá o primeiro profissional disponível.</p>}
           </div>
         )}
 
@@ -241,8 +252,8 @@ export default function PublicBookingWizard({
                 )}
               </div>
             )}
-             {selectedServico && !professionalForTimeSlots && availableProfissionais.length > 1 && currentStep === 2 && (
-                <p className="text-sm text-muted-foreground mt-1">Por favor, selecione um profissional específico na etapa anterior para ver os horários.</p>
+             {selectedServico && !professionalForTimeSlots && availableProfissionais.length > 1 && currentStep === 2 && (selectedProfissionalId === '' || selectedProfissionalId === ANY_PROFESSIONAL_VALUE) && (
+                <p className="text-sm text-muted-foreground mt-1">Por favor, selecione um profissional específico ou, se houver apenas um, ele será usado automaticamente.</p>
             )}
           </div>
         )}
@@ -269,7 +280,7 @@ export default function PublicBookingWizard({
             <h3 className="font-semibold text-base mb-2">Resumo do Agendamento:</h3>
             <p><strong>Serviço:</strong> {selectedServico?.nome}</p>
             <p><strong>Profissional:</strong> {professionalForTimeSlots?.nome || 'Primeiro disponível'}</p>
-            <p><strong>Data e Hora:</strong> {selectedDate && selectedTime ? formatDateTime(new Date(`${selectedDate}T${selectedTime}`)) : 'Não definido'}</p>
+            <p><strong>Data e Hora:</strong> {selectedDate && selectedTime ? formatDateTime(new Date(`${selectedDate}T${selectedTime}:00Z`)) : 'Não definido'}</p>
             <p><strong>Duração:</strong> {selectedServico?.duracaoMinutos} minutos</p>
             <p><strong>Preço:</strong> {selectedServico ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(selectedServico.preco) : 'N/A'}</p>
             <hr className="my-3"/>
@@ -310,6 +321,3 @@ export default function PublicBookingWizard({
     </Card>
   );
 }
-
-
-    

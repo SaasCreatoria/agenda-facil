@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { Agendamento, AgendamentoCreateDto, Servico, Profissional, Cliente } from '@/types';
@@ -24,7 +25,6 @@ const agendaValidationSchema: ValidationSchema = {
   profissionalId: (value) => (value ? null : 'Profissional é obrigatório.'),
   dataHora: (value) => {
     if (!value) return 'Data e hora são obrigatórios.';
-    // Basic check, more robust validation might be needed (e.g. considering timezone)
     if (new Date(value) < new Date(new Date().setHours(0,0,0,0))) return 'A data não pode ser no passado.';
     return null;
   },
@@ -44,7 +44,6 @@ interface AgendaFormProps {
 export default function AgendaForm({ initialData, onSubmit, onCancel, servicos, profissionais, clientes }: AgendaFormProps) {
   const defaultDataHora = () => {
       const now = new Date();
-      // Adjust to a future time, e.g., next hour rounded to 00 or 30
       now.setHours(now.getHours() + 1);
       if (now.getMinutes() < 30) now.setMinutes(30);
       else {
@@ -73,7 +72,7 @@ export default function AgendaForm({ initialData, onSubmit, onCancel, servicos, 
     onSubmit: async (data) => {
       const dataToSubmit = {
         ...data,
-        dataHora: new Date(data.dataHora).toISOString(), // Ensure ISO string for submission
+        dataHora: new Date(data.dataHora).toISOString(), 
       };
       await onSubmit(dataToSubmit);
     },
@@ -81,7 +80,6 @@ export default function AgendaForm({ initialData, onSubmit, onCancel, servicos, 
 
   const [filteredProfissionais, setFilteredProfissionais] = useState<Profissional[]>(profissionais);
 
-  // Update duration and filter professionals when service changes
   useEffect(() => {
     if (values.servicoId) {
       const selectedServico = servicos.find(s => s.id === values.servicoId);
@@ -98,7 +96,7 @@ export default function AgendaForm({ initialData, onSubmit, onCancel, servicos, 
       setFilteredProfissionais(profissionais.filter(p => p.ativo)); 
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [values.servicoId, servicos, profissionais]);
+  }, [values.servicoId, servicos, profissionais, handleChange]); // Added handleChange to dependencies
 
   return (
     <Card>
@@ -133,10 +131,11 @@ export default function AgendaForm({ initialData, onSubmit, onCancel, servicos, 
           <div>
             <Label htmlFor="profissionalId">Profissional</Label>
             <Select name="profissionalId" value={values.profissionalId} onValueChange={(value) => handleChange('profissionalId', value)} disabled={!values.servicoId || filteredProfissionais.length === 0}>
-              <SelectTrigger id="profissionalId"><SelectValue placeholder={!values.servicoId ? "Selecione um serviço primeiro" : "Selecione o profissional"} /></SelectTrigger>
+              <SelectTrigger id="profissionalId">
+                <SelectValue placeholder={!values.servicoId ? "Selecione um serviço primeiro" : (filteredProfissionais.length === 0 ? "Nenhum prof. p/ este serviço" : "Selecione o profissional")} />
+              </SelectTrigger>
               <SelectContent>
                 {filteredProfissionais.map(p => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
-                 {values.servicoId && filteredProfissionais.length === 0 && <SelectItem value="" disabled>Nenhum profissional disponível para este serviço.</SelectItem>}
               </SelectContent>
             </Select>
             {errors.profissionalId && <p className="text-sm text-destructive mt-1">{errors.profissionalId}</p>}
@@ -190,3 +189,4 @@ export default function AgendaForm({ initialData, onSubmit, onCancel, servicos, 
     </Card>
   );
 }
+
