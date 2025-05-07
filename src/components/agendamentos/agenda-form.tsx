@@ -84,19 +84,44 @@ export default function AgendaForm({ initialData, onSubmit, onCancel, servicos, 
     if (values.servicoId) {
       const selectedServico = servicos.find(s => s.id === values.servicoId);
       if (selectedServico) {
-        handleChange('duracaoMinutos', selectedServico.duracaoMinutos);
+        if (values.duracaoMinutos !== selectedServico.duracaoMinutos) {
+          handleChange('duracaoMinutos', selectedServico.duracaoMinutos);
+        }
         const newFilteredProfissionais = profissionais.filter(p => p.servicosIds.includes(values.servicoId) && p.ativo);
         setFilteredProfissionais(newFilteredProfissionais);
         if (values.profissionalId && !newFilteredProfissionais.some(p => p.id === values.profissionalId)) {
-            handleChange('profissionalId', '');
+          handleChange('profissionalId', '');
+        }
+      } else {
+        // servicoId is selected, but service not found (e.g. lists updated)
+        if (values.duracaoMinutos !== 0) {
+          handleChange('duracaoMinutos', 0);
+        }
+        setFilteredProfissionais(profissionais.filter(p => p.ativo));
+        if (values.profissionalId !== '') {
+          handleChange('profissionalId', '');
         }
       }
-    } else {
-      handleChange('duracaoMinutos', 0);
-      setFilteredProfissionais(profissionais.filter(p => p.ativo)); 
+    } else { // No servicoId selected
+      if (values.duracaoMinutos !== 0) {
+        handleChange('duracaoMinutos', 0);
+      }
+      setFilteredProfissionais(profissionais.filter(p => p.ativo));
+      if (values.profissionalId !== '') {
+        handleChange('profissionalId', '');
+      }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [values.servicoId, servicos, profissionais, handleChange]); // Added handleChange to dependencies
+  }, [
+      values.servicoId, 
+      values.profissionalId, 
+      values.duracaoMinutos, 
+      servicos, 
+      profissionais, 
+      // handleChange is intentionally omitted here to prevent infinite loops,
+      // as it's an action, not a trigger, and its instance changes frequently.
+      // setValues from useFormValidation is stable if we were to use it directly.
+      setFilteredProfissionais // This is a stable useState setter.
+    ]);
 
   return (
     <Card>
@@ -130,7 +155,12 @@ export default function AgendaForm({ initialData, onSubmit, onCancel, servicos, 
           
           <div>
             <Label htmlFor="profissionalId">Profissional</Label>
-            <Select name="profissionalId" value={values.profissionalId} onValueChange={(value) => handleChange('profissionalId', value)} disabled={!values.servicoId || filteredProfissionais.length === 0}>
+            <Select 
+              name="profissionalId" 
+              value={values.profissionalId} 
+              onValueChange={(value) => handleChange('profissionalId', value)} 
+              disabled={!values.servicoId || filteredProfissionais.length === 0}
+            >
               <SelectTrigger id="profissionalId">
                 <SelectValue placeholder={!values.servicoId ? "Selecione um serviço primeiro" : (filteredProfissionais.length === 0 ? "Nenhum prof. p/ este serviço" : "Selecione o profissional")} />
               </SelectTrigger>
