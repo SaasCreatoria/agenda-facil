@@ -1,8 +1,9 @@
+
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import ThemeProviderClient from '@/components/providers/theme-provider-client';
-// AppProvider is removed from here and will be added to specific layouts
+import { AuthProvider } from '@/contexts/auth-context'; // Import AuthProvider
 
 export const metadata: Metadata = {
   title: 'Agenda Fácil',
@@ -23,8 +24,10 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
-          <Toaster />
+          <AuthProvider> {/* Wrap with AuthProvider */}
+            {children}
+            <Toaster />
+          </AuthProvider>
         </ThemeProviderClient>
       </body>
     </html>

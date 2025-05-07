@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -6,6 +7,8 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Menu, CalendarDays } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { Moon, Sun } from 'lucide-react';
+import { useAuth } from '@/contexts/auth-context'; // Import useAuth
+import UserNav from '@/components/auth/user-nav'; // Import UserNav
 
 const navItems = [
   { label: 'Funcionalidades', href: '#features' },
@@ -14,6 +17,7 @@ const navItems = [
 
 export default function LandingHeader() {
   const { theme, setTheme } = useTheme();
+  const { user, loadingAuth } = useAuth(); // Get user and loading state
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -46,9 +50,20 @@ export default function LandingHeader() {
               <Sun className="h-5 w-5" />
             )}
           </Button>
-          <Button asChild className="hidden sm:inline-flex">
-            <Link href="/dashboard">Acessar App</Link>
-          </Button>
+          
+          {/* Conditional rendering for UserNav or Login button */}
+          {!loadingAuth && (
+            user ? (
+              <UserNav />
+            ) : (
+              <Button asChild className="hidden sm:inline-flex" variant="outline">
+                <Link href="/login">Acessar Painel</Link>
+              </Button>
+            )
+          )}
+          {loadingAuth && <div className="h-8 w-20 rounded-md bg-muted animate-pulse hidden sm:block" />}
+
+
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="outline" size="icon" className="md:hidden">
@@ -67,9 +82,18 @@ export default function LandingHeader() {
                     {item.label}
                   </Link>
                 ))}
-                <Button asChild>
-                  <Link href="/dashboard">Acessar App</Link>
-                </Button>
+                {!loadingAuth && (
+                  user ? (
+                    <Button asChild variant="default" className="w-full">
+                      <Link href="/dashboard">Acessar Painel</Link>
+                    </Button>
+                  ) : (
+                    <Button asChild variant="outline" className="w-full">
+                      <Link href="/login">Entrar / Registrar</Link>
+                    </Button>
+                  )
+                )}
+                {loadingAuth && <div className="h-10 w-full rounded-md bg-muted animate-pulse" />}
               </div>
             </SheetContent>
           </Sheet>

@@ -1,3 +1,6 @@
+
+'use client'; // Needed for useAuth
+
 import LandingHeader from '@/components/landing/landing-header';
 import HeroSection from '@/components/landing/hero-section';
 import FeaturesSection from '@/components/landing/features-section';
@@ -5,8 +8,11 @@ import LandingFooter from '@/components/landing/landing-footer';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
+import { useAuth } from '@/contexts/auth-context';
 
 export default function LandingPage() {
+  const { user, loadingAuth } = useAuth();
+
   return (
     <div className="flex min-h-screen flex-col">
       <LandingHeader />
@@ -25,14 +31,26 @@ export default function LandingPage() {
               </p>
             </div>
             <div className="mx-auto w-full max-w-sm space-y-2">
-              <Button asChild size="lg" className="w-full group">
-                <Link href="/publica">
-                  Experimente Grátis
-                  <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-                </Link>
-              </Button>
+              {!loadingAuth && (
+                user ? (
+                  <Button asChild size="lg" className="w-full group">
+                    <Link href="/dashboard">
+                      Acessar seu Painel
+                      <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                    </Link>
+                  </Button>
+                ) : (
+                  <Button asChild size="lg" className="w-full group">
+                    <Link href="/signup">
+                      Crie sua Conta Grátis
+                      <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                    </Link>
+                  </Button>
+                )
+              )}
+              {loadingAuth && <div className="h-11 w-full rounded-md bg-primary/50 animate-pulse" />}
               <p className="text-xs text-muted-foreground">
-                Sem necessidade de cartão de crédito. Comece em minutos.
+                {user ? 'Continue de onde parou.' : 'Sem necessidade de cartão de crédito. Comece em minutos.'}
               </p>
             </div>
           </div>

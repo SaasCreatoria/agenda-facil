@@ -1,9 +1,15 @@
+
+'use client'; // Needed for useAuth
+
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
 import { ArrowRight } from 'lucide-react';
+import { useAuth } from '@/contexts/auth-context'; // Import useAuth
 
 export default function HeroSection() {
+  const { user, loadingAuth } = useAuth(); // Get user and loading state
+
   return (
     <section className="w-full py-12 md:py-24 lg:py-32 xl:py-48 bg-gradient-to-br from-primary/10 via-background to-secondary/10">
       <div className="container px-4 md:px-6">
@@ -18,15 +24,28 @@ export default function HeroSection() {
               </p>
             </div>
             <div className="flex flex-col gap-2 min-[400px]:flex-row">
-              <Button asChild size="lg" className="group">
-                <Link href="/publica">
-                  Agendar Agora
-                  <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-                </Link>
-              </Button>
+              {!loadingAuth && (
+                user ? (
+                  <Button asChild size="lg" className="group">
+                    <Link href="/dashboard">
+                      Ir para o Painel
+                      <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                    </Link>
+                  </Button>
+                ) : (
+                  <Button asChild size="lg" className="group">
+                    <Link href="/signup">
+                      Começar Gratuitamente
+                      <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                    </Link>
+                  </Button>
+                )
+              )}
+               {loadingAuth && <div className="h-11 w-48 rounded-md bg-primary/50 animate-pulse" />}
+
               <Button asChild variant="outline" size="lg">
-                <Link href="/dashboard">
-                  Acessar Painel
+                <Link href="/publica">
+                  Ver Página Pública
                 </Link>
               </Button>
             </div>

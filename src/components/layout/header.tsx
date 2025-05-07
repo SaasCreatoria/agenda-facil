@@ -5,10 +5,11 @@ import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Moon, Sun } from 'lucide-react';
 import { useTheme } from 'next-themes';
+import UserNav from '@/components/auth/user-nav'; // Import UserNav
 
 export default function AppHeader() {
   const { theme, setTheme } = useTheme();
-  const { toggleSidebar } = useSidebar();
+  // const { toggleSidebar } = useSidebar(); // toggleSidebar is not used, but can be kept if planned for future.
 
 
   return (
@@ -27,6 +28,7 @@ export default function AppHeader() {
           <Sun className="h-5 w-5" />
         )}
       </Button>
+      <UserNav /> {/* Add UserNav component */}
     </header>
   );
 }
