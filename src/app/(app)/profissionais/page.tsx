@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -131,7 +132,7 @@ export default function ProfissionaisPage() {
       </Card>
 
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent className="sm:max-w-lg md:max-w-2xl"> 
+        <DialogContent className="sm:max-w-lg md:max-w-2xl max-h-[90vh] overflow-y-auto"> 
           <DialogHeader>
             <DialogTitle>{editingProfissional ? 'Editar Profissional' : 'Novo Profissional'}</DialogTitle>
           </DialogHeader>
