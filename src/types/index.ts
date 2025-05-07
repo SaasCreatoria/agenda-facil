@@ -54,8 +54,8 @@ export interface Cliente extends Identifiable {
   telefone: string;
   dataNascimento?: string; // ISO string for date
   observacoes?: string;
-  // criadoEm: string; // Optional
-  // atualizadoEm: string; // Optional
+  criadoEm: any; // Timestamp for Firestore
+  atualizadoEm: any; // Timestamp for Firestore
 }
 
 export interface Lembrete extends Identifiable {
@@ -85,5 +85,6 @@ export interface ConfiguracaoEmpresa {
 export type AgendamentoCreateDto = Omit<Agendamento, 'id' | 'criadoEm' | 'atualizadoEm' | 'clienteNome' | 'profissionalNome' | 'servicoNome'>;
 export type ServicoCreateDto = Omit<Servico, 'id'>;
 export type ProfissionalCreateDto = Omit<Profissional, 'id'>;
-export type ClienteCreateDto = Omit<Cliente, 'id'>;
+export type ClienteCreateDto = Omit<Cliente, 'id' | 'criadoEm' | 'atualizadoEm'>;
 export type LembreteCreateDto = Omit<Lembrete, 'id' | 'criadoEm' | 'atualizadoEm'>;
+
