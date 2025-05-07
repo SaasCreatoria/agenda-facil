@@ -18,8 +18,8 @@ export interface Agendamento extends Identifiable {
   duracaoMinutos: number;
   observacoes?: string;
   status: AgendamentoStatus;
-  criadoEm: string; // ISO string
-  atualizadoEm: string; // ISO string
+  criadoEm: string | any; // ISO string in app state, Firestore Timestamp on write
+  atualizadoEm: string | any; // ISO string in app state, Firestore Timestamp on write
 }
 
 export interface Servico extends Identifiable {
@@ -88,5 +88,6 @@ export type ServicoCreateDto = Omit<Servico, 'id' | 'criadoEm' | 'atualizadoEm'>
 export type ProfissionalCreateDto = Omit<Profissional, 'id' | 'criadoEm' | 'atualizadoEm'>;
 export type ClienteCreateDto = Omit<Cliente, 'id' | 'criadoEm' | 'atualizadoEm'>;
 export type LembreteCreateDto = Omit<Lembrete, 'id' | 'criadoEm' | 'atualizadoEm'>;
+
 
 
