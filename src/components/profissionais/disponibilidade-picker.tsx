@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Trash2, PlusCircle } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const DIAS_SEMANA = [
   { id: 0, nome: 'Domingo' },
@@ -43,12 +44,13 @@ export default function DisponibilidadePicker({ initialHorarios, onChange }: Dis
 
   useEffect(() => {
     // Ensure initialHorarios are distinct by diaSemana if only one interval per day is supported
+    // And sort them initially
     const uniqueInitialHorarios = initialHorarios.reduce((acc, current) => {
         if (!acc.find(item => item.diaSemana === current.diaSemana)) {
             acc.push(current);
         }
         return acc;
-    }, [] as HorarioDisponivel[]);
+    }, [] as HorarioDisponivel[]).sort((a, b) => a.diaSemana - b.diaSemana);
     setHorarios(uniqueInitialHorarios);
   }, [initialHorarios]);
 
@@ -63,21 +65,29 @@ export default function DisponibilidadePicker({ initialHorarios, onChange }: Dis
       // Remove all horarios for that day
       newHorarios = newHorarios.filter(h => h.diaSemana !== diaSemana);
     }
+    // Sort by diaSemana to maintain order if days are toggled out of order
+    newHorarios.sort((a,b) => a.diaSemana - b.diaSemana);
     setHorarios(newHorarios);
     onChange(newHorarios);
   };
 
   const handleTimeChange = (diaSemana: number, tipo: 'inicio' | 'fim', value: string) => {
-    const newHorarios = horarios.map(h => 
+    let newHorarios = horarios.map(h => 
       h.diaSemana === diaSemana ? { ...h, [tipo]: value } : h
     );
     
-    const diaHorario = newHorarios.find(h => h.diaSemana === diaSemana);
-    if (diaHorario && diaHorario.fim < diaHorario.inicio) {
-        if (tipo === 'inicio' && value > diaHorario.fim) {
-             newHorarios.find(h => h.diaSemana === diaSemana)!.fim = value;
-        } else if (tipo === 'fim' && value < diaHorario.inicio){
-             newHorarios.find(h => h.diaSemana === diaSemana)!.inicio = value;
+    const diaHorarioIndex = newHorarios.findIndex(h => h.diaSemana === diaSemana);
+
+    if (diaHorarioIndex !== -1) {
+        const diaHorario = newHorarios[diaHorarioIndex];
+        if (diaHorario.inicio > diaHorario.fim) { // If start time is after end time
+            if (tipo === 'inicio') {
+                 // If user changed start time to be after end time, set end time to new start time
+                newHorarios[diaHorarioIndex] = { ...diaHorario, fim: value };
+            } else { // tipo === 'fim'
+                // If user changed end time to be before start time, set start time to new end time
+                newHorarios[diaHorarioIndex] = { ...diaHorario, inicio: value };
+            }
         }
     }
     setHorarios(newHorarios);
@@ -85,55 +95,59 @@ export default function DisponibilidadePicker({ initialHorarios, onChange }: Dis
   };
   
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       <Label>Horários de Trabalho</Label>
-      {DIAS_SEMANA.map(dia => {
-        const horarioDoDia = horarios.find(h => h.diaSemana === dia.id);
-        const isChecked = !!horarioDoDia;
+      <ScrollArea className="h-auto max-h-[280px] w-full rounded-md border">
+        <div className="p-3 space-y-3">
+          {DIAS_SEMANA.map(dia => {
+            const horarioDoDia = horarios.find(h => h.diaSemana === dia.id);
+            const isChecked = !!horarioDoDia;
 
-        return (
-          <div key={dia.id} className="p-3 border rounded-md space-y-2 bg-muted/50">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id={`dia-${dia.id}`}
-                  checked={isChecked}
-                  onCheckedChange={(checked) => handleDiaChange(dia.id, !!checked)}
-                />
-                <Label htmlFor={`dia-${dia.id}`} className="font-medium">{dia.nome}</Label>
-              </div>
-            </div>
-            {isChecked && horarioDoDia && (
-              <div className="grid grid-cols-2 gap-3 items-end pl-6">
-                <div>
-                  <Label htmlFor={`inicio-${dia.id}`} className="text-xs">Início</Label>
-                  <Select 
-                    value={horarioDoDia.inicio} 
-                    onValueChange={(value) => handleTimeChange(dia.id, 'inicio', value)}
-                  >
-                    <SelectTrigger id={`inicio-${dia.id}`}><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                        {TIME_OPTIONS.map(time => <SelectItem key={`inicio-${dia.id}-${time}`} value={time}>{time}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+            return (
+              <div key={dia.id} className="p-3 rounded-md space-y-2 bg-background hover:bg-muted/50 transition-colors">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`dia-${dia.id}`}
+                      checked={isChecked}
+                      onCheckedChange={(checked) => handleDiaChange(dia.id, !!checked)}
+                    />
+                    <Label htmlFor={`dia-${dia.id}`} className="font-medium">{dia.nome}</Label>
+                  </div>
                 </div>
-                <div>
-                  <Label htmlFor={`fim-${dia.id}`} className="text-xs">Fim</Label>
-                   <Select 
-                    value={horarioDoDia.fim} 
-                    onValueChange={(value) => handleTimeChange(dia.id, 'fim', value)}
-                  >
-                    <SelectTrigger id={`fim-${dia.id}`}><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                        {TIME_OPTIONS.map(time => <SelectItem key={`fim-${dia.id}-${time}`} value={time}>{time}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
+                {isChecked && horarioDoDia && (
+                  <div className="grid grid-cols-2 gap-3 items-end pl-6">
+                    <div>
+                      <Label htmlFor={`inicio-${dia.id}`} className="text-xs">Início</Label>
+                      <Select 
+                        value={horarioDoDia.inicio} 
+                        onValueChange={(value) => handleTimeChange(dia.id, 'inicio', value)}
+                      >
+                        <SelectTrigger id={`inicio-${dia.id}`}><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            {TIME_OPTIONS.map(time => <SelectItem key={`inicio-${dia.id}-${time}`} value={time}>{time}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor={`fim-${dia.id}`} className="text-xs">Fim</Label>
+                       <Select 
+                        value={horarioDoDia.fim} 
+                        onValueChange={(value) => handleTimeChange(dia.id, 'fim', value)}
+                      >
+                        <SelectTrigger id={`fim-${dia.id}`}><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            {TIME_OPTIONS.map(time => <SelectItem key={`fim-${dia.id}-${time}`} value={time}>{time}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        );
-      })}
+            );
+          })}
+        </div>
+      </ScrollArea>
     </div>
   );
 }
