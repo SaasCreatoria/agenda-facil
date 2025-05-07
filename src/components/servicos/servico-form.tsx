@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { Servico, ServicoCreateDto } from '@/types';
@@ -18,7 +19,7 @@ type ValidationSchema = {
 const servicoValidationSchema: ValidationSchema = {
   nome: (value) => (value && value.trim() ? null : 'Nome do serviço é obrigatório.'),
   preco: (value) => (value !== undefined && value >= 0 ? null : 'Preço deve ser um valor não negativo.'), // Allow 0
-  duracaoMinutos: (value) => (value > 0 ? null : 'Duração deve ser maior que zero.'),
+  duracaoMinutos: (value) => (value !== undefined && value > 0 ? null : 'Duração deve ser maior que zero.'),
 };
 
 interface ServicoFormProps {
@@ -38,7 +39,12 @@ export default function ServicoForm({ initialData, onSubmit, onCancel }: Servico
     },
     validationSchema: servicoValidationSchema as any,
     onSubmit: async (data) => {
-      await onSubmit(data);
+      const dataToSubmit = {
+        ...data,
+        preco: data.preco === undefined ? 0 : Number(data.preco),
+        duracaoMinutos: data.duracaoMinutos === undefined ? 0 : Number(data.duracaoMinutos),
+      };
+      await onSubmit(dataToSubmit);
     },
   });
 
@@ -64,12 +70,25 @@ export default function ServicoForm({ initialData, onSubmit, onCancel }: Servico
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="preco">Preço (R$)</Label>
-              <Input id="preco" name="preco" type="number" value={values.preco} onChange={handleInputChange} step="0.01" />
+              <Input 
+                id="preco" 
+                name="preco" 
+                type="number" 
+                value={(values.preco === undefined || isNaN(values.preco as number)) ? '' : values.preco} 
+                onChange={handleInputChange} 
+                step="0.01" 
+              />
               {errors.preco && <p className="text-sm text-destructive mt-1">{errors.preco}</p>}
             </div>
             <div>
               <Label htmlFor="duracaoMinutos">Duração (minutos)</Label>
-              <Input id="duracaoMinutos" name="duracaoMinutos" type="number" value={values.duracaoMinutos} onChange={handleInputChange} />
+              <Input 
+                id="duracaoMinutos" 
+                name="duracaoMinutos" 
+                type="number" 
+                value={(values.duracaoMinutos === undefined || isNaN(values.duracaoMinutos as number)) ? '' : values.duracaoMinutos} 
+                onChange={handleInputChange} 
+              />
               {errors.duracaoMinutos && <p className="text-sm text-destructive mt-1">{errors.duracaoMinutos}</p>}
             </div>
           </div>

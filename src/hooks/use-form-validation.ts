@@ -69,7 +69,10 @@ export function useFormValidation<TFormValues extends Record<string, any>>({
     if (type === 'checkbox') {
       processedValue = (event.target as HTMLInputElement).checked;
     } else if (type === 'number') {
-      processedValue = parseFloat(value);
+      const numValue = parseFloat(value);
+      // If value was empty string and resulted in NaN, store as undefined to allow clearing the field.
+      // Otherwise, store the parsed number (which might be NaN if input was invalid text like "abc").
+      processedValue = (value.trim() === '' && isNaN(numValue)) ? undefined : numValue;
     }
 
     handleChange(name as keyof TFormValues, processedValue);
@@ -105,3 +108,4 @@ export function useFormValidation<TFormValues extends Record<string, any>>({
     resetForm,
   };
 }
+

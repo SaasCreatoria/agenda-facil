@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { ServicoCreateDto } from '@/types';
@@ -38,7 +39,13 @@ export default function ServicoOnboardingForm({ onSubmit, onBack, onProcessing }
     validationSchema: servicoValidationSchema as any,
     onSubmit: async (data) => {
       onProcessing?.(true);
-      await onSubmit(data); // Parent handles next step on success (via returned ID)
+      // Ensure preco and duracaoMinutos are numbers, defaulting to 0 if undefined (which shouldn't happen with new handleInputChange)
+      const dataToSubmit = {
+        ...data,
+        preco: data.preco === undefined ? 0 : Number(data.preco),
+        duracaoMinutos: data.duracaoMinutos === undefined ? 0 : Number(data.duracaoMinutos),
+      };
+      await onSubmit(dataToSubmit); 
       onProcessing?.(false);
     },
   });
@@ -61,12 +68,27 @@ export default function ServicoOnboardingForm({ onSubmit, onBack, onProcessing }
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="preco">Preço (R$)</Label>
-              <Input id="preco" name="preco" type="number" value={values.preco} onChange={handleInputChange} step="0.01" min="0" />
+              <Input 
+                id="preco" 
+                name="preco" 
+                type="number" 
+                value={(values.preco === undefined || isNaN(values.preco as number)) ? '' : values.preco} 
+                onChange={handleInputChange} 
+                step="0.01" 
+                min="0" 
+              />
               {errors.preco && <p className="text-sm text-destructive mt-1">{errors.preco}</p>}
             </div>
             <div>
               <Label htmlFor="duracaoMinutos">Duração (minutos)</Label>
-              <Input id="duracaoMinutos" name="duracaoMinutos" type="number" value={values.duracaoMinutos} onChange={handleInputChange} min="1" />
+              <Input 
+                id="duracaoMinutos" 
+                name="duracaoMinutos" 
+                type="number" 
+                value={(values.duracaoMinutos === undefined || isNaN(values.duracaoMinutos as number)) ? '' : values.duracaoMinutos} 
+                onChange={handleInputChange} 
+                min="1" 
+              />
               {errors.duracaoMinutos && <p className="text-sm text-destructive mt-1">{errors.duracaoMinutos}</p>}
             </div>
           </div>
@@ -83,3 +105,4 @@ export default function ServicoOnboardingForm({ onSubmit, onBack, onProcessing }
     </Card>
   );
 }
+

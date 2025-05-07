@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { ConfiguracaoEmpresa, LembreteTipo } from '@/types';
@@ -27,7 +28,7 @@ const HSL_REGEX = /^\d{1,3}\s+\d{1,3}%\s+\d{1,3}%$/;
 const configValidationSchema: ValidationSchema = {
   nomeEmpresa: (value) => (value && value.trim() ? null : 'Nome da empresa é obrigatório.'),
   fusoHorario: (value) => (value ? null : 'Fuso horário é obrigatório.'),
-  antecedenciaLembreteHoras: (value) => (value > 0 ? null : 'Antecedência deve ser maior que zero horas.'),
+  antecedenciaLembreteHoras: (value) => (value !== undefined && value > 0 ? null : 'Antecedência deve ser maior que zero horas.'),
   canalLembretePadrao: (value) => (value ? null : 'Canal de lembrete padrão é obrigatório.'),
   publicPageTitle: (value) => (value && value.trim() ? null : 'Título da página pública é obrigatório.'),
   publicPageWelcomeMessage: (value) => (value && value.trim() ? null : 'Mensagem de boas-vindas é obrigatória.'),
@@ -62,7 +63,11 @@ export default function ConfigForm({ initialData, onSubmit }: ConfigFormProps) {
     initialValues: initialData,
     validationSchema: configValidationSchema as any,
     onSubmit: async (data) => {
-      await onSubmit(data);
+      const dataToSubmit = {
+        ...data,
+        antecedenciaLembreteHoras: data.antecedenciaLembreteHoras === undefined ? 0 : Number(data.antecedenciaLembreteHoras),
+      };
+      await onSubmit(dataToSubmit);
     },
   });
 
@@ -129,7 +134,14 @@ export default function ConfigForm({ initialData, onSubmit }: ConfigFormProps) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
           <Label htmlFor="antecedenciaLembreteHoras">Antecedência do Lembrete (horas)</Label>
-          <Input id="antecedenciaLembreteHoras" name="antecedenciaLembreteHoras" type="number" value={values.antecedenciaLembreteHoras} onChange={handleInputChange} min="1" />
+          <Input 
+            id="antecedenciaLembreteHoras" 
+            name="antecedenciaLembreteHoras" 
+            type="number" 
+            value={(values.antecedenciaLembreteHoras === undefined || isNaN(values.antecedenciaLembreteHoras as number)) ? '' : values.antecedenciaLembreteHoras} 
+            onChange={handleInputChange} 
+            min="1" 
+          />
           {errors.antecedenciaLembreteHoras && <p className="text-sm text-destructive mt-1">{errors.antecedenciaLembreteHoras}</p>}
         </div>
         <div className="space-y-2">
@@ -184,3 +196,4 @@ export default function ConfigForm({ initialData, onSubmit }: ConfigFormProps) {
     </form>
   );
 }
+
