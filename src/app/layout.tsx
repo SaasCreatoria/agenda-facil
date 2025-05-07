@@ -2,11 +2,11 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import ThemeProviderClient from '@/components/providers/theme-provider-client';
-import { AppProvider } from '@/contexts/app-context'; // Import AppProvider
+// AppProvider is removed from here and will be added to specific layouts
 
 export const metadata: Metadata = {
   title: 'Agenda Fácil',
-  description: 'Gerenciamento fácil de agendamentos',
+  description: 'Gerenciamento fácil de agendamentos e landing page da plataforma.',
 };
 
 export default function RootLayout({
@@ -23,10 +23,8 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <AppProvider> {/* Wrap with AppProvider */}
-            {children}
-            <Toaster />
-          </AppProvider>
+          {children}
+          <Toaster />
         </ThemeProviderClient>
       </body>
     </html>

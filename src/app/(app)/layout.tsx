@@ -1,8 +1,12 @@
 
 import AppLayout from '@/components/layout/app-layout';
 import type { ReactNode } from 'react';
+import { AppProvider } from '@/contexts/app-context';
 
 export default function AuthenticatedAppLayout({ children }: { children: ReactNode }) {
-  // Here you might add authentication checks in a real app
-  return <AppLayout>{children}</AppLayout>;
+  return (
+    <AppProvider>
+      <AppLayout>{children}</AppLayout>
+    </AppProvider>
+  );
 }
