@@ -6,6 +6,7 @@ import ConfigForm from '@/components/configuracao/config-form';
 import { useAppContext } from '@/contexts/app-context';
 import type { ConfiguracaoEmpresa } from '@/types';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Separator } from '@/components/ui/separator';
 
 export default function ConfiguracaoPage() {
   const { configuracao, loadingConfiguracao, updateConfiguracao, loadAgendamentos, loadLembretes } = useAppContext();
@@ -32,8 +33,8 @@ export default function ConfiguracaoPage() {
       />
       <Card>
         <CardHeader>
-          <CardTitle>Detalhes da Empresa</CardTitle>
-          <CardDescription>Informações básicas e preferências.</CardDescription>
+          <CardTitle>Detalhes da Empresa e Preferências</CardTitle>
+          {/* <CardDescription>Informações básicas e preferências.</CardDescription> */}
         </CardHeader>
         <CardContent>
           {loadingConfiguracao ? (
@@ -42,12 +43,24 @@ export default function ConfiguracaoPage() {
                     <Skeleton className="h-10 w-full" />
                     <Skeleton className="h-10 w-full" />
                 </div>
-                <Skeleton className="h-24 w-full" />
+                <Skeleton className="h-24 w-full" /> {/* Logo placeholder */}
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <Skeleton className="h-10 w-full" />
                     <Skeleton className="h-10 w-full" />
                 </div>
-                <div className="flex justify-end">
+                
+                <Separator className="my-6 !mt-8 !mb-4" />
+                <Skeleton className="h-6 w-1/2 mb-4" /> {/* Placeholder for "Personalização da Página Pública" title */}
+                
+                <Skeleton className="h-10 w-full" /> {/* publicPageTitle */}
+                <Skeleton className="h-20 w-full" /> {/* publicPageWelcomeMessage (textarea) */}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <Skeleton className="h-10 w-full" /> {/* publicPagePrimaryColor */}
+                    <Skeleton className="h-10 w-full" /> {/* publicPageAccentColor */}
+                </div>
+
+                <div className="flex justify-end pt-4">
                     <Skeleton className="h-10 w-32" />
                 </div>
             </div>

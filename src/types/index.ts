@@ -74,6 +74,11 @@ export interface ConfiguracaoEmpresa {
   fusoHorario: string; // IANA timezone name e.g., "America/Sao_Paulo"
   antecedenciaLembreteHoras: number; // e.g., 24 for 24 hours before
   canalLembretePadrao: LembreteTipo;
+  // Public page customization
+  publicPageTitle?: string;
+  publicPageWelcomeMessage?: string;
+  publicPagePrimaryColor?: string; // HSL string, e.g., "210 40% 96%"
+  publicPageAccentColor?: string; // HSL string
 }
 
 // DTOs for creation - excluding id and audit fields

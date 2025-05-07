@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Separator } from '@/components/ui/separator';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
 
@@ -14,13 +16,23 @@ type ValidationSchema = {
   fusoHorario: (value: string) => string | null;
   antecedenciaLembreteHoras: (value: number) => string | null;
   canalLembretePadrao: (value: string) => string | null;
+  publicPageTitle?: (value: string) => string | null;
+  publicPageWelcomeMessage?: (value: string) => string | null;
+  publicPagePrimaryColor?: (value: string) => string | null;
+  publicPageAccentColor?: (value: string) => string | null;
 };
+
+const HSL_REGEX = /^\d{1,3}\s+\d{1,3}%\s+\d{1,3}%$/;
 
 const configValidationSchema: ValidationSchema = {
   nomeEmpresa: (value) => (value && value.trim() ? null : 'Nome da empresa é obrigatório.'),
   fusoHorario: (value) => (value ? null : 'Fuso horário é obrigatório.'),
   antecedenciaLembreteHoras: (value) => (value > 0 ? null : 'Antecedência deve ser maior que zero horas.'),
   canalLembretePadrao: (value) => (value ? null : 'Canal de lembrete padrão é obrigatório.'),
+  publicPageTitle: (value) => (value && value.trim() ? null : 'Título da página pública é obrigatório.'),
+  publicPageWelcomeMessage: (value) => (value && value.trim() ? null : 'Mensagem de boas-vindas é obrigatória.'),
+  publicPagePrimaryColor: (value) => (!value || HSL_REGEX.test(value) ? null : 'Cor primária deve ser um HSL válido (e.g., "180 100% 25%") ou vazia.'),
+  publicPageAccentColor: (value) => (!value || HSL_REGEX.test(value) ? null : 'Cor de destaque deve ser um HSL válido (e.g., "240 100% 27%") ou vazia.'),
 };
 
 // A more comprehensive list might be needed or fetched.
@@ -57,7 +69,7 @@ export default function ConfigForm({ initialData, onSubmit }: ConfigFormProps) {
   const [logoPreview, setLogoPreview] = useState<string | null>(initialData.logoBase64 || null);
 
   useEffect(() => {
-    setValues(initialData); // Ensure form updates if initialData changes from parent
+    setValues(initialData); 
     setLogoPreview(initialData.logoBase64 || null);
   }, [initialData, setValues]);
 
@@ -66,7 +78,7 @@ export default function ConfigForm({ initialData, onSubmit }: ConfigFormProps) {
     if (file) {
       if (file.size > 2 * 1024 * 1024) { // Max 2MB for logo
         alert("O arquivo da logo deve ser menor que 2MB.");
-        event.target.value = ""; // Clear the input
+        event.target.value = ""; 
         return;
       }
       const reader = new FileReader();
@@ -135,7 +147,36 @@ export default function ConfigForm({ initialData, onSubmit }: ConfigFormProps) {
         </div>
       </div>
 
-      <div className="flex justify-end">
+      <Separator className="my-6" />
+      <h3 className="text-lg font-medium mb-4 -mt-2">Personalização da Página Pública</h3>
+      
+      <div className="space-y-2">
+        <Label htmlFor="publicPageTitle">Título da Página Pública</Label>
+        <Input id="publicPageTitle" name="publicPageTitle" value={values.publicPageTitle || ''} onChange={handleInputChange} />
+        {errors.publicPageTitle && <p className="text-sm text-destructive mt-1">{errors.publicPageTitle}</p>}
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="publicPageWelcomeMessage">Mensagem de Boas-vindas</Label>
+        <Textarea id="publicPageWelcomeMessage" name="publicPageWelcomeMessage" value={values.publicPageWelcomeMessage || ''} onChange={handleInputChange} placeholder="Uma breve mensagem para seus clientes..."/>
+        {errors.publicPageWelcomeMessage && <p className="text-sm text-destructive mt-1">{errors.publicPageWelcomeMessage}</p>}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-2">
+          <Label htmlFor="publicPagePrimaryColor">Cor Primária (HSL)</Label>
+          <Input id="publicPagePrimaryColor" name="publicPagePrimaryColor" value={values.publicPagePrimaryColor || ''} onChange={handleInputChange} placeholder="Ex: 180 100% 25% (deixe vazio para padrão)"/>
+          {errors.publicPagePrimaryColor && <p className="text-sm text-destructive mt-1">{errors.publicPagePrimaryColor}</p>}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="publicPageAccentColor">Cor de Destaque (HSL)</Label>
+          <Input id="publicPageAccentColor" name="publicPageAccentColor" value={values.publicPageAccentColor || ''} onChange={handleInputChange} placeholder="Ex: 240 100% 27% (deixe vazio para padrão)"/>
+          {errors.publicPageAccentColor && <p className="text-sm text-destructive mt-1">{errors.publicPageAccentColor}</p>}
+        </div>
+      </div>
+
+
+      <div className="flex justify-end pt-4">
         <Button type="submit" disabled={isSubmitting}>
             {isSubmitting ? 'Salvando...' : 'Salvar Configurações'}
         </Button>

@@ -11,6 +11,10 @@ const DEFAULT_CONFIG: ConfiguracaoEmpresa = {
   fusoHorario: 'America/Sao_Paulo',
   antecedenciaLembreteHoras: 24,
   canalLembretePadrao: 'EMAIL',
+  publicPageTitle: 'Agende seu Horário',
+  publicPageWelcomeMessage: 'Rápido, fácil e seguro.',
+  publicPagePrimaryColor: '', // Empty means use theme default
+  publicPageAccentColor: '',  // Empty means use theme default
 };
 
 export function useConfiguracao() {
@@ -24,7 +28,8 @@ export function useConfiguracao() {
       try {
         const storedConfig = localStorage.getItem(LS_CONFIGURACAO_KEY);
         if (storedConfig) {
-          setConfiguracao(JSON.parse(storedConfig));
+          // Merge stored config with defaults to ensure new fields are present
+          setConfiguracao({ ...DEFAULT_CONFIG, ...JSON.parse(storedConfig) });
         } else {
           setConfiguracao(DEFAULT_CONFIG);
           localStorage.setItem(LS_CONFIGURACAO_KEY, JSON.stringify(DEFAULT_CONFIG));
