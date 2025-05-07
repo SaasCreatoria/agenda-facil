@@ -1,4 +1,3 @@
-
 import type { Identifiable } from '@/types';
 
 // Helper to generate unique IDs
@@ -6,7 +5,7 @@ export function generateId(): string {
   if (typeof window !== 'undefined' && window.crypto && window.crypto.randomUUID) {
     return window.crypto.randomUUID();
   }
-  // Fallback for environments where crypto.randomUUID is not available (e.g., older browsers, Node.js without crypto import)
+  // Fallback for environments where crypto.randomUUID is not available
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
     const r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
     return v.toString(16);
@@ -38,31 +37,37 @@ export function getById<T extends Identifiable>(key: string, id: string): T | un
 export function create<TData, TStored extends TData & Identifiable>(
   key: string,
   data: TData,
-  generateNewId: boolean = true
+  /**
+   * If true (default), a new ID will always be generated, ignoring any 'id' field in `data`.
+   * If false, and `data` contains an 'id' field, that 'id' will be used.
+   * An error will be thrown if `forceGenerateNewId` is false, `data.id` is provided, and an item with that ID already exists.
+   */
+  forceGenerateNewId: boolean = true
 ): TStored {
   if (typeof window === 'undefined') {
-    // This case should ideally not happen if create is called client-side.
-    // Returning a mock or throwing an error might be options.
-    // For now, let's assume it's used client-side.
     const mockId = generateId();
     console.warn("LocalStorage 'create' called in non-browser environment. Returning mock data.");
     return { ...data, id: mockId } as TStored;
   }
   
   const items = getAll<TStored>(key);
-  const newItemId = (data as any).id && !generateNewId ? (data as any).id : generateId();
-  
-  const newItem = { ...data, id: newItemId } as TStored;
+  let newId: string;
 
-  if (items.some(item => item.id === newItem.id && generateNewId)) { // Only check for collision if we generated a new ID or if an ID was passed and we are not supposed to overwrite
-     console.warn(`ID collision for key ${key} and id ${newItem.id}. Generating a new one.`);
-     newItem.id = generateId(); // Regenerate ID if collision and it was auto-generated
-  } else if (items.some(item => item.id === newItem.id && !generateNewId && !(data as any).id)) {
-    // If an ID was passed in `data` and generateNewId is false, check for collision
-    throw new Error(`Item with ID ${newItem.id} already exists in ${key}.`);
+  if (!forceGenerateNewId && (data as Partial<Identifiable>).id) {
+    newId = (data as Partial<Identifiable>).id as string;
+    if (items.some(item => item.id === newId)) {
+      throw new Error(`Item with ID ${newId} already exists in ${key}. Cannot create with pre-existing ID when forceGenerateNewId is false.`);
+    }
+  } else {
+    newId = generateId();
+    // Extremely unlikely with UUIDs, but handle for robustness or non-UUID generateId fallbacks
+    while (items.some(item => item.id === newId)) {
+      console.warn(`ID collision for key ${key} with auto-generated id ${newId}. Regenerating.`);
+      newId = generateId();
+    }
   }
-
-
+  
+  const newItem = { ...data, id: newId } as TStored;
   items.push(newItem);
   localStorage.setItem(key, JSON.stringify(items));
   return newItem;

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import ThemeProviderClient from '@/components/providers/theme-provider-client';
+import { AppProvider } from '@/contexts/app-context'; // Import AppProvider
 
 export const metadata: Metadata = {
   title: 'Agenda Fácil',
@@ -22,8 +23,10 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
-          <Toaster />
+          <AppProvider> {/* Wrap with AppProvider */}
+            {children}
+            <Toaster />
+          </AppProvider>
         </ThemeProviderClient>
       </body>
     </html>
