@@ -80,6 +80,8 @@ export interface ConfiguracaoEmpresa {
   publicPageWelcomeMessage?: string;
   publicPagePrimaryColor?: string; // HSL string, e.g., "210 40% 96%"
   publicPageAccentColor?: string; // HSL string
+  criadoEm?: any; // Timestamp for Firestore
+  atualizadoEm?: any; // Timestamp for Firestore
 }
 
 // DTOs for creation - excluding id and audit fields
@@ -88,6 +90,7 @@ export type ServicoCreateDto = Omit<Servico, 'id' | 'criadoEm' | 'atualizadoEm'>
 export type ProfissionalCreateDto = Omit<Profissional, 'id' | 'criadoEm' | 'atualizadoEm'>;
 export type ClienteCreateDto = Omit<Cliente, 'id' | 'criadoEm' | 'atualizadoEm'>;
 export type LembreteCreateDto = Omit<Lembrete, 'id' | 'criadoEm' | 'atualizadoEm'>;
+
 
 
 
