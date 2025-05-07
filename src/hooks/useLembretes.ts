@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -30,7 +31,7 @@ export function useLembretes() {
     loadLembretes();
   }, [loadLembretes]);
 
-  const createLembrete = async (agendamento: Agendamento, config: ConfiguracaoEmpresa): Promise<Lembrete | null> => {
+  const createLembrete = useCallback(async (agendamento: Agendamento, config: ConfiguracaoEmpresa): Promise<Lembrete | null> => {
     const dataHoraAgendamento = new Date(agendamento.dataHora);
     const dataEnvioAgendado = new Date(dataHoraAgendamento.getTime() - config.antecedenciaLembreteHoras * 60 * 60 * 1000);
 
@@ -74,9 +75,9 @@ export function useLembretes() {
       toast({ variant: 'destructive', title: 'Erro ao criar lembrete', description: (error as Error).message });
       return null;
     }
-  };
+  }, [lembretes, toast, setLembretes]);
 
-  const updateLembreteStatus = async (id: string, status: Lembrete['status']): Promise<Lembrete | null> => {
+  const updateLembreteStatus = useCallback(async (id: string, status: Lembrete['status']): Promise<Lembrete | null> => {
     try {
       const updatedLembrete = storage.update<Lembrete>(LS_LEMBRETES_KEY, id, { status, atualizadoEm: new Date().toISOString() });
       if (updatedLembrete) {
@@ -90,9 +91,9 @@ export function useLembretes() {
       toast({ variant: 'destructive', title: 'Erro ao atualizar lembrete', description: (error as Error).message });
       return null;
     }
-  };
+  }, [toast, setLembretes]);
 
-  const removeLembrete = async (id: string): Promise<boolean> => {
+  const removeLembrete = useCallback(async (id: string): Promise<boolean> => {
     try {
       const success = storage.remove(LS_LEMBRETES_KEY, id);
       if (success) {
@@ -105,14 +106,14 @@ export function useLembretes() {
       toast({ variant: 'destructive', title: 'Erro ao remover lembrete', description: (error as Error).message });
       return false;
     }
-  };
+  }, [toast, setLembretes]);
   
   const getLembreteById = useCallback((id: string): Lembrete | undefined => {
     return lembretes.find(l => l.id === id);
   }, [lembretes]);
 
 
-  const sendReminder = async (lembrete: Lembrete): Promise<void> => {
+  const sendReminder = useCallback(async (lembrete: Lembrete): Promise<void> => {
     console.log(`Simulating sending reminder ${lembrete.id} via ${lembrete.tipo}...`);
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000)); 
@@ -126,7 +127,7 @@ export function useLembretes() {
         description: `O lembrete para o agendamento ${lembrete.agendamentoId} foi ${newStatus.toLowerCase()}.`,
         variant: success ? 'default' : 'destructive'
     });
-  }
+  }, [toast, updateLembreteStatus]);
 
 
   return {

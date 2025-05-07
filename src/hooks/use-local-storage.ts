@@ -50,8 +50,7 @@ function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T | ((val
 
   useEffect(() => {
     setStoredValue(readValue());
-     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [readValue]); // Added readValue to dependency array
 
   useEffect(() => {
     const handleStorageChange = (event: StorageEvent) => {
@@ -68,3 +67,4 @@ function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T | ((val
 }
 
 export default useLocalStorage;
+
