@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -44,6 +45,7 @@ export default function SignupForm() {
       const firebaseUser = userCredential.user;
       if (firebaseUser) {
         await updateProfile(firebaseUser, { displayName: data.name });
+        // The saveUserToFirestore function already sets onboardingCompleted to false by default.
         await saveUserToFirestore(firebaseUser, { displayName: data.name }); 
       }
       toast({ title: 'Conta criada!', description: 'Você foi registrado com sucesso. Redirecionando para o onboarding...' });
@@ -99,3 +101,4 @@ export default function SignupForm() {
     </Card>
   );
 }
+
