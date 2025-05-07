@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -28,7 +27,7 @@ export default function SignupForm() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
-  const { saveUserToFirestore } = useAuth(); // Get saveUserToFirestore function
+  const { saveUserToFirestore } = useAuth(); 
 
   const {
     register,
@@ -45,11 +44,10 @@ export default function SignupForm() {
       const firebaseUser = userCredential.user;
       if (firebaseUser) {
         await updateProfile(firebaseUser, { displayName: data.name });
-        // Explicitly pass the name from the form to be saved in Firestore
         await saveUserToFirestore(firebaseUser, { displayName: data.name }); 
       }
-      toast({ title: 'Conta criada!', description: 'Você foi registrado com sucesso. Redirecionando...' });
-      router.push('/dashboard'); 
+      toast({ title: 'Conta criada!', description: 'Você foi registrado com sucesso. Redirecionando para o onboarding...' });
+      router.push('/onboarding'); // Redirect to onboarding
     } catch (error: any) {
       console.error('Signup error:', error);
       let errorMessage = 'Ocorreu um erro ao criar a conta. Tente novamente.';
