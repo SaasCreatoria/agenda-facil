@@ -1,3 +1,4 @@
+
 export interface Identifiable {
   id: string;
 }
@@ -44,8 +45,8 @@ export interface Profissional extends Identifiable {
   servicosIds: string[];
   horariosDisponiveis: HorarioDisponivel[];
   ativo: boolean;
-  // criadoEm: string; // Optional
-  // atualizadoEm: string; // Optional
+  criadoEm?: any; // Timestamp for Firestore
+  atualizadoEm?: any; // Timestamp for Firestore
 }
 
 export interface Cliente extends Identifiable {
@@ -84,7 +85,7 @@ export interface ConfiguracaoEmpresa {
 // DTOs for creation - excluding id and audit fields
 export type AgendamentoCreateDto = Omit<Agendamento, 'id' | 'criadoEm' | 'atualizadoEm' | 'clienteNome' | 'profissionalNome' | 'servicoNome'>;
 export type ServicoCreateDto = Omit<Servico, 'id' | 'criadoEm' | 'atualizadoEm'>;
-export type ProfissionalCreateDto = Omit<Profissional, 'id'>;
+export type ProfissionalCreateDto = Omit<Profissional, 'id' | 'criadoEm' | 'atualizadoEm'>;
 export type ClienteCreateDto = Omit<Cliente, 'id' | 'criadoEm' | 'atualizadoEm'>;
 export type LembreteCreateDto = Omit<Lembrete, 'id' | 'criadoEm' | 'atualizadoEm'>;
 
