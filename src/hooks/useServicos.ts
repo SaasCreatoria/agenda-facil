@@ -36,11 +36,12 @@ export function useServicos() {
       const q = query(servicosCollectionRef, orderBy('nome'));
       const querySnapshot = await getDocs(q);
       const fetchedServicos: Servico[] = [];
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
+      querySnapshot.forEach((docSnap) => { // Changed doc to docSnap
+        const data = docSnap.data();
         fetchedServicos.push({ 
-          id: doc.id, 
+          id: docSnap.id, 
           ...data,
+          // Handle Firestore Timestamps
           criadoEm: data.criadoEm instanceof Timestamp ? data.criadoEm.toDate().toISOString() : data.criadoEm,
           atualizadoEm: data.atualizadoEm instanceof Timestamp ? data.atualizadoEm.toDate().toISOString() : data.atualizadoEm,
         } as Servico);
@@ -68,13 +69,18 @@ export function useServicos() {
       const servicosCollectionRef = collection(db, 'users', user.uid, 'servicos');
       const servicoData = {
         ...data,
+        preco: Number(data.preco), // Ensure preco is a number
+        duracaoMinutos: Number(data.duracaoMinutos), // Ensure duracaoMinutos is a number
         criadoEm: serverTimestamp(),
         atualizadoEm: serverTimestamp(),
       };
       const docRef = await addDoc(servicosCollectionRef, servicoData);
+      // For immediate UI update, we use client-side timestamp approximation
       const newServico: Servico = { 
         id: docRef.id, 
         ...data, 
+        preco: Number(data.preco),
+        duracaoMinutos: Number(data.duracaoMinutos),
         criadoEm: new Date().toISOString(), 
         atualizadoEm: new Date().toISOString()
       };
@@ -97,14 +103,19 @@ export function useServicos() {
       const servicoDocRef = doc(db, 'users', user.uid, 'servicos', id);
       const updateData = {
         ...updates,
+        ...(updates.preco !== undefined && { preco: Number(updates.preco) }), // Ensure preco is a number if present
+        ...(updates.duracaoMinutos !== undefined && { duracaoMinutos: Number(updates.duracaoMinutos) }), // Ensure duracaoMinutos is a number if present
         atualizadoEm: serverTimestamp(),
       };
       await updateDoc(servicoDocRef, updateData);
       
+      // For immediate UI update
       const updatedServicoLocal: Servico = { 
-          ...(servicos.find(s => s.id ===id) as Servico),
-          ...updates,
-          atualizadoEm: new Date().toISOString()
+          ...(servicos.find(s => s.id ===id) as Servico), // Get current local state
+          ...updates, // Apply updates
+          ...(updates.preco !== undefined && { preco: Number(updates.preco) }),
+          ...(updates.duracaoMinutos !== undefined && { duracaoMinutos: Number(updates.duracaoMinutos) }),
+          atualizadoEm: new Date().toISOString() // Approximate client-side timestamp
       };
 
       setServicos(prev => prev.map(s => (s.id === id ? updatedServicoLocal : s)).sort((a, b) => a.nome.localeCompare(b.nome)));
@@ -123,6 +134,7 @@ export function useServicos() {
       return false;
     }
     // In a real app, check for future appointments with this servico from Firestore or context.
+    // This is currently handled in the page component (src/app/(app)/servicos/page.tsx)
     try {
       const servicoDocRef = doc(db, 'users', user.uid, 'servicos', id);
       await deleteDoc(servicoDocRef);
