@@ -14,6 +14,7 @@ import { auth } from '@/firebase/config';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useAuth } from '@/contexts/auth-context'; // Import useAuth
 
 const signupSchema = z.object({
   name: z.string().min(2, { message: 'Nome deve ter no mínimo 2 caracteres.' }),
@@ -27,6 +28,7 @@ export default function SignupForm() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
+  const { saveUserToFirestore } = useAuth(); // Get saveUserToFirestore function
 
   const {
     register,
@@ -40,8 +42,11 @@ export default function SignupForm() {
     setIsLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
-      if (userCredential.user) {
-        await updateProfile(userCredential.user, { displayName: data.name });
+      const firebaseUser = userCredential.user;
+      if (firebaseUser) {
+        await updateProfile(firebaseUser, { displayName: data.name });
+        // Explicitly pass the name from the form to be saved in Firestore
+        await saveUserToFirestore(firebaseUser, { displayName: data.name }); 
       }
       toast({ title: 'Conta criada!', description: 'Você foi registrado com sucesso. Redirecionando...' });
       router.push('/dashboard'); 
