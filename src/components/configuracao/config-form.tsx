@@ -11,6 +11,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
+import { useToast } from '@/hooks/use-toast'; // Import useToast
+import { Loader2 } from 'lucide-react';
 
 type ValidationSchema = {
   nomeEmpresa: (value: string) => string | null;
@@ -76,6 +78,8 @@ export default function ConfigForm({ initialData, onSubmit }: ConfigFormProps) {
   });
 
   const [logoPreview, setLogoPreview] = useState<string | null>(initialData.logoBase64 || null);
+  const [isTestingZapi, setIsTestingZapi] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     setValues(initialData); 
@@ -99,6 +103,49 @@ export default function ConfigForm({ initialData, onSubmit }: ConfigFormProps) {
       reader.readAsDataURL(file);
     }
   };
+
+  const handleTestZapiConnection = async () => {
+    const instanceId = values.zapiInstancia?.trim();
+    const token = values.zapiToken?.trim();
+
+    if (!instanceId || !token) {
+      toast({
+        variant: 'destructive',
+        title: 'Credenciais Z-API ausentes',
+        description: 'Por favor, preencha o ID da Instância e o Token Z-API.',
+      });
+      return;
+    }
+
+    setIsTestingZapi(true);
+    try {
+      const response = await fetch(`https://api.z-api.io/instances/${instanceId}/token/${token}/status`);
+      const data = await response.json();
+
+      if (response.ok) {
+        toast({
+          title: 'Conexão com Z-API bem-sucedida!',
+          description: `Status da instância: ${data.connected ? 'Conectada' : 'Desconectada'} (${data.statusReason || 'OK'})`,
+        });
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Falha ao conectar com Z-API',
+          description: `Erro ${response.status}: ${data.error || data.value || response.statusText}`,
+        });
+      }
+    } catch (error) {
+      console.error('Error testing Z-API connection:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao testar Z-API',
+        description: 'Não foi possível conectar ao servidor Z-API. Verifique sua conexão ou as credenciais.',
+      });
+    } finally {
+      setIsTestingZapi(false);
+    }
+  };
+
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -125,7 +172,7 @@ export default function ConfigForm({ initialData, onSubmit }: ConfigFormProps) {
         <Input id="logoEmpresa" type="file" accept="image/png, image/jpeg, image/webp, image/svg+xml" onChange={handleLogoChange} />
         {logoPreview && (
           <div className="mt-2 h-24 w-auto max-w-xs p-2 border rounded-md flex items-center justify-center bg-muted">
-             <Image src={logoPreview} alt="Preview do Logo" width={100} height={100} className="object-contain max-h-full max-w-full rounded" />
+             <Image src={logoPreview} alt="Preview do Logo" width={100} height={100} className="object-contain max-h-full max-w-full rounded" data-ai-hint="company logo preview"/>
           </div>
         )}
         {!logoPreview && (
@@ -165,7 +212,7 @@ export default function ConfigForm({ initialData, onSubmit }: ConfigFormProps) {
            {errors.canalLembretePadrao && <p className="text-sm text-destructive mt-1">{errors.canalLembretePadrao}</p>}
         </div>
       </div>
-       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
         <div className="space-y-2">
             <Label htmlFor="zapiInstancia">Z-API ID da Instância (Opcional)</Label>
             <Input 
@@ -189,9 +236,21 @@ export default function ConfigForm({ initialData, onSubmit }: ConfigFormProps) {
             {errors.zapiToken && <p className="text-sm text-destructive mt-1">{errors.zapiToken}</p>}
         </div>
       </div>
-      <p className="text-xs text-muted-foreground">
-        Se preenchidos, os lembretes via WhatsApp serão enviados através da sua conta Z-API.
-      </p>
+      <div className="mt-2 flex flex-col space-y-2 md:flex-row md:space-y-0 md:space-x-2 md:items-center">
+            <Button 
+                type="button" 
+                variant="outline" 
+                onClick={handleTestZapiConnection} 
+                disabled={isTestingZapi || !values.zapiInstancia?.trim() || !values.zapiToken?.trim()}
+                className="w-full md:w-auto"
+            >
+                {isTestingZapi ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Testar Conexão Z-API
+            </Button>
+             <p className="text-xs text-muted-foreground flex-1">
+                Se preenchidos, os lembretes via WhatsApp serão enviados através da sua conta Z-API.
+            </p>
+       </div>
 
 
       <Separator className="my-6" />
@@ -224,7 +283,7 @@ export default function ConfigForm({ initialData, onSubmit }: ConfigFormProps) {
 
 
       <div className="flex justify-end pt-4">
-        <Button type="submit" disabled={isSubmitting}>
+        <Button type="submit" disabled={isSubmitting || isTestingZapi}>
             {isSubmitting ? 'Salvando...' : 'Salvar Configurações'}
         </Button>
       </div>
