@@ -243,10 +243,24 @@ export function useLembretes() {
       if (lembrete.tipo === 'WHATSAPP') {
         const configDocRef = doc(db, 'users', user.uid, 'configuracao', 'main');
         const configSnap = await getDoc(configDocRef);
-        const zapierWebhookUrl = configSnap.data()?.zapierWhatsappWebhookUrl;
+        const zapierWebhookUrlFromDb = configSnap.data()?.zapierWhatsappWebhookUrl;
 
-        if (!zapierWebhookUrl) {
-          errorMessage = 'URL do webhook Zapier para WhatsApp não configurada.';
+        if (!zapierWebhookUrlFromDb || typeof zapierWebhookUrlFromDb !== 'string') {
+          errorMessage = 'URL do webhook Zapier para WhatsApp não configurada ou é inválida.';
+          throw new Error(errorMessage);
+        }
+        
+        let validZapierUrlString: string;
+        try {
+          const parsedUrl = new URL(zapierWebhookUrlFromDb);
+          if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+            errorMessage = 'URL do webhook Zapier deve usar http ou https.';
+            throw new Error(errorMessage);
+          }
+          validZapierUrlString = parsedUrl.href;
+        } catch (e) {
+          console.error("Invalid Zapier Webhook URL format:", zapierWebhookUrlFromDb, e);
+          errorMessage = 'URL do webhook Zapier para WhatsApp parece estar malformada.';
           throw new Error(errorMessage);
         }
 
@@ -268,7 +282,7 @@ export function useLembretes() {
         
         const whatsappMessage = lembrete.mensagem || `Lembrete: Olá ${clienteData.nome}, seu agendamento para ${agendamentoData.servicoNome || 'serviço'} está marcado para ${formatDateTime(agendamentoData.dataHora)}.`;
 
-        const response = await fetch(zapierWebhookUrl, {
+        const response = await fetch(validZapierUrlString, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -305,7 +319,7 @@ export function useLembretes() {
       }
     } catch (error: any) {
         console.error(`Error sending ${lembrete.tipo} reminder:`, error);
-        errorMessage = error.message || "Erro desconhecido ao enviar lembrete.";
+        errorMessage = error.message || "Erro desconhecido ao enviar lembrete."; // Use existing error message if already set
         success = false;
     }
     
@@ -346,3 +360,4 @@ export function useLembretes() {
     sendReminder,
   };
 }
+
