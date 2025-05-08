@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -13,6 +14,7 @@ const DEFAULT_CONFIG: ConfiguracaoEmpresa = {
   fusoHorario: 'America/Sao_Paulo',
   antecedenciaLembreteHoras: 24,
   canalLembretePadrao: 'EMAIL',
+  zapierWhatsappWebhookUrl: '', // Added field
   publicPageTitle: 'Agende seu Horário',
   publicPageWelcomeMessage: 'Rápido, fácil e seguro.',
   publicPagePrimaryColor: '', 
@@ -113,3 +115,4 @@ export function useConfiguracao() {
     updateConfiguracao,
   };
 }
+

@@ -1,3 +1,4 @@
+
 'use client';
 
 import PageHeader from '@/components/shared/page-header';
@@ -44,10 +45,15 @@ export default function ConfiguracaoPage() {
                     <Skeleton className="h-10 w-full" />
                 </div>
                 <Skeleton className="h-24 w-full" /> {/* Logo placeholder */}
+                
+                <Separator className="my-6 !mt-8 !mb-4" />
+                <Skeleton className="h-6 w-1/2 mb-4" /> {/* Placeholder for "Configurações de Lembretes" title */}
+
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <Skeleton className="h-10 w-full" />
-                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" /> {/* antecedenciaLembreteHoras */}
+                    <Skeleton className="h-10 w-full" /> {/* canalLembretePadrao */}
                 </div>
+                <Skeleton className="h-10 w-full" /> {/* zapierWhatsappWebhookUrl */}
                 
                 <Separator className="my-6 !mt-8 !mb-4" />
                 <Skeleton className="h-6 w-1/2 mb-4" /> {/* Placeholder for "Personalização da Página Pública" title */}
@@ -75,3 +81,4 @@ export default function ConfiguracaoPage() {
     </>
   );
 }
+

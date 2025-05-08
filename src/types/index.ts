@@ -75,6 +75,7 @@ export interface ConfiguracaoEmpresa {
   fusoHorario: string; // IANA timezone name e.g., "America/Sao_Paulo"
   antecedenciaLembreteHoras: number; // e.g., 24 for 24 hours before
   canalLembretePadrao: LembreteTipo;
+  zapierWhatsappWebhookUrl?: string; // URL for Zapier Webhook for WhatsApp
   // Public page customization
   publicPageTitle?: string;
   publicPageWelcomeMessage?: string;
@@ -90,6 +91,7 @@ export type ServicoCreateDto = Omit<Servico, 'id' | 'criadoEm' | 'atualizadoEm'>
 export type ProfissionalCreateDto = Omit<Profissional, 'id' | 'criadoEm' | 'atualizadoEm'>;
 export type ClienteCreateDto = Omit<Cliente, 'id' | 'criadoEm' | 'atualizadoEm'>;
 export type LembreteCreateDto = Omit<Lembrete, 'id' | 'criadoEm' | 'atualizadoEm'>;
+
 
 
 

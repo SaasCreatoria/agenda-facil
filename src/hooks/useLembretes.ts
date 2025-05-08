@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import type { Lembrete, LembreteCreateDto, Agendamento, ConfiguracaoEmpresa } from '@/types';
+import type { Lembrete, LembreteCreateDto, Agendamento, ConfiguracaoEmpresa, Cliente } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
 import { db } from '@/firebase/config';
@@ -17,7 +17,8 @@ import {
   serverTimestamp,
   Timestamp,
   orderBy,
-  where
+  where,
+  getDoc
 } from 'firebase/firestore';
 import { formatDateTime } from '@/utils/helpers';
 
@@ -192,18 +193,89 @@ export function useLembretes() {
       toast({ variant: 'destructive', title: 'Não autenticado', description: 'Erro ao enviar lembrete.' });
       return;
     }
-    console.log(`Simulating sending reminder ${lembrete.id} via ${lembrete.tipo}...`);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000)); 
+
+    let success = false;
+    let errorMessage: string | undefined;
+
+    try {
+      if (lembrete.tipo === 'WHATSAPP') {
+        // Fetch config for Zapier URL
+        const configDocRef = doc(db, 'users', user.uid, 'configuracao', 'main');
+        const configSnap = await getDoc(configDocRef);
+        if (!configSnap.exists() || !configSnap.data()?.zapierWhatsappWebhookUrl) {
+          errorMessage = 'URL do webhook Zapier para WhatsApp não configurada.';
+          throw new Error(errorMessage);
+        }
+        const webhookUrl = configSnap.data()?.zapierWhatsappWebhookUrl;
+
+        // Fetch agendamento and cliente details for WhatsApp message
+        const agendamentoDocRef = doc(db, 'users', user.uid, 'agendamentos', lembrete.agendamentoId);
+        const agendamentoSnap = await getDoc(agendamentoDocRef);
+        if (!agendamentoSnap.exists()) {
+          errorMessage = 'Agendamento associado ao lembrete não encontrado.';
+          throw new Error(errorMessage);
+        }
+        const agendamentoData = agendamentoSnap.data() as Agendamento;
+
+        const clienteDocRef = doc(db, 'users', user.uid, 'clientes', agendamentoData.clienteId);
+        const clienteSnap = await getDoc(clienteDocRef);
+        if (!clienteSnap.exists()) {
+             errorMessage = 'Cliente associado ao agendamento não encontrado.';
+            throw new Error(errorMessage);
+        }
+        const clienteData = clienteSnap.data() as Cliente;
+        
+        const whatsappMessage = lembrete.mensagem || `Lembrete: Olá ${clienteData.nome}, seu agendamento para ${agendamentoData.servicoNome || 'serviço'} está marcado para ${formatDateTime(agendamentoData.dataHora)}.`;
+
+        const response = await fetch(webhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: clienteData.telefone, // Assuming this is the WhatsApp number
+            text: whatsappMessage,
+            // Add any other data Zapier expects
+            clienteNome: clienteData.nome,
+            servicoNome: agendamentoData.servicoNome,
+            dataHora: formatDateTime(agendamentoData.dataHora),
+            empresaNome: configSnap.data()?.nomeEmpresa || "Sua Empresa"
+          }),
+        });
+
+        if (!response.ok) {
+            const errorBody = await response.text();
+            errorMessage = `Falha ao enviar WhatsApp via Zapier: ${response.status} ${errorBody}`;
+            throw new Error(errorMessage);
+        }
+        console.log("WhatsApp reminder sent via Zapier:", await response.json());
+        success = true;
+
+      } else if (lembrete.tipo === 'EMAIL') {
+        // Simulate Email sending
+        console.log(`Simulating sending EMAIL reminder ${lembrete.id}...`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        success = Math.random() > 0.05; // 95% success rate for email
+        if(!success) errorMessage = "Falha simulada no envio de Email.";
+      } else {
+        console.warn(`Tipo de lembrete ${lembrete.tipo} não implementado para envio.`);
+        errorMessage = `Tipo de lembrete ${lembrete.tipo} não suportado.`;
+      }
+    } catch (error: any) {
+        console.error(`Error sending ${lembrete.tipo} reminder:`, error);
+        errorMessage = error.message || "Erro desconhecido ao enviar lembrete.";
+        success = false;
+    }
     
-    const success = Math.random() > 0.1; // 90% success rate
     const newStatus = success ? 'ENVIADO' : 'FALHOU';
     await updateLembreteStatus(lembrete.id, newStatus);
+
     toast({
         title: `Lembrete ${success ? 'Enviado' : 'Falhou'}`,
-        description: `O lembrete para o agendamento ${lembrete.agendamentoId.substring(0,8)}... foi ${newStatus.toLowerCase()}.`,
+        description: success 
+            ? `O lembrete (${lembrete.tipo}) para o agendamento foi processado.`
+            : errorMessage || `Falha ao processar lembrete (${lembrete.tipo}).`,
         variant: success ? 'default' : 'destructive'
     });
+
   }, [user, toast, updateLembreteStatus]);
 
   return {
@@ -217,3 +289,4 @@ export function useLembretes() {
     sendReminder,
   };
 }
+

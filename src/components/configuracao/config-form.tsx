@@ -17,6 +17,7 @@ type ValidationSchema = {
   fusoHorario: (value: string) => string | null;
   antecedenciaLembreteHoras: (value: number) => string | null;
   canalLembretePadrao: (value: string) => string | null;
+  zapierWhatsappWebhookUrl?: (value: string) => string | null;
   publicPageTitle?: (value: string) => string | null;
   publicPageWelcomeMessage?: (value: string) => string | null;
   publicPagePrimaryColor?: (value: string) => string | null;
@@ -24,12 +25,14 @@ type ValidationSchema = {
 };
 
 const HSL_REGEX = /^\d{1,3}\s+\d{1,3}%\s+\d{1,3}%$/;
+const URL_REGEX = /^(ftp|http|https):\/\/[^ "]+$/;
 
 const configValidationSchema: ValidationSchema = {
   nomeEmpresa: (value) => (value && value.trim() ? null : 'Nome da empresa é obrigatório.'),
   fusoHorario: (value) => (value ? null : 'Fuso horário é obrigatório.'),
   antecedenciaLembreteHoras: (value) => (value !== undefined && value > 0 ? null : 'Antecedência deve ser maior que zero horas.'),
   canalLembretePadrao: (value) => (value ? null : 'Canal de lembrete padrão é obrigatório.'),
+  zapierWhatsappWebhookUrl: (value) => (!value || URL_REGEX.test(value) ? null : 'URL do webhook Zapier inválida.'),
   publicPageTitle: (value) => (value && value.trim() ? null : 'Título da página pública é obrigatório.'),
   publicPageWelcomeMessage: (value) => (value && value.trim() ? null : 'Mensagem de boas-vindas é obrigatória.'),
   publicPagePrimaryColor: (value) => (!value || HSL_REGEX.test(value) ? null : 'Cor primária deve ser um HSL válido (e.g., "180 100% 25%") ou vazia.'),
@@ -49,8 +52,8 @@ const TIMEZONE_OPTIONS = [
 
 const LEMBRETE_CANAIS: { value: LembreteTipo, label: string}[] = [
     { value: 'EMAIL', label: 'Email'},
-    { value: 'SMS', label: 'SMS (Indisponível)'}, // Mark as unavailable if not implemented
-    { value: 'WHATSAPP', label: 'WhatsApp (Indisponível)'}
+    { value: 'SMS', label: 'SMS (Indisponível)'}, 
+    { value: 'WHATSAPP', label: 'WhatsApp (via Zapier)'}
 ];
 
 interface ConfigFormProps {
@@ -131,6 +134,9 @@ export default function ConfigForm({ initialData, onSubmit }: ConfigFormProps) {
         )}
       </div>
       
+      <Separator className="my-6" />
+      <h3 className="text-lg font-medium mb-4 -mt-2">Configurações de Lembretes</h3>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
           <Label htmlFor="antecedenciaLembreteHoras">Antecedência do Lembrete (horas)</Label>
@@ -158,6 +164,21 @@ export default function ConfigForm({ initialData, onSubmit }: ConfigFormProps) {
            {errors.canalLembretePadrao && <p className="text-sm text-destructive mt-1">{errors.canalLembretePadrao}</p>}
         </div>
       </div>
+       <div className="space-y-2">
+        <Label htmlFor="zapierWhatsappWebhookUrl">Zapier Webhook URL para WhatsApp (Opcional)</Label>
+        <Input 
+          id="zapierWhatsappWebhookUrl" 
+          name="zapierWhatsappWebhookUrl" 
+          value={values.zapierWhatsappWebhookUrl || ''} 
+          onChange={handleInputChange}
+          placeholder="https://hooks.zapier.com/hooks/catch/..."
+        />
+        {errors.zapierWhatsappWebhookUrl && <p className="text-sm text-destructive mt-1">{errors.zapierWhatsappWebhookUrl}</p>}
+        <p className="text-xs text-muted-foreground">
+          Se preenchido, os lembretes via WhatsApp serão enviados através deste webhook do Zapier.
+        </p>
+      </div>
+
 
       <Separator className="my-6" />
       <h3 className="text-lg font-medium mb-4 -mt-2">Personalização da Página Pública</h3>
