@@ -276,12 +276,15 @@ export function useLembretes() {
         const configSnap = await getDoc(configDocRef);
         const configData = configSnap.data() as ConfiguracaoEmpresa | undefined;
 
-        if (!configData?.zapiInstancia || !configData?.zapiToken) {
-          errorMessage = 'Configurações da Z-API (Instância/Token) não encontradas ou inválidas.';
+        const zapiInstancia = configData?.zapiInstancia?.trim();
+        const zapiToken = configData?.zapiToken?.trim();
+
+        if (!zapiInstancia || !zapiToken) {
+          errorMessage = 'Configurações da Z-API (Instância/Token) não encontradas, inválidas ou contêm apenas espaços.';
           throw new Error(errorMessage);
         }
         
-        const zapiUrl = `https://api.z-api.io/instances/${configData.zapiInstancia}/token/${configData.zapiToken}/send-text`;
+        const zapiUrl = `https://api.z-api.io/instances/${zapiInstancia}/token/${zapiToken}/send-text`;
 
         const agendamentoDocRef = doc(db, 'users', user.uid, 'agendamentos', lembrete.agendamentoId);
         const agendamentoSnap = await getDoc(agendamentoDocRef);
@@ -299,7 +302,7 @@ export function useLembretes() {
         }
         const clienteData = clienteSnap.data() as Cliente;
         
-        const whatsappMessage = lembrete.mensagem || `Lembrete: Olá ${clienteData.nome}, seu agendamento para ${agendamentoData.servicoNome || 'serviço'} com ${agendamentoData.profissionalNome || 'profissional'} está marcado para ${formatDateTime(agendamentoData.dataHora)}. Atenciosamente, ${configData.nomeEmpresa || "Sua Empresa"}`;
+        const whatsappMessage = lembrete.mensagem || `Lembrete: Olá ${clienteData.nome}, seu agendamento para ${agendamentoData.servicoNome || 'serviço'} com ${agendamentoData.profissionalNome || 'profissional'} está marcado para ${formatDateTime(agendamentoData.dataHora)}. Atenciosamente, ${configData?.nomeEmpresa || "Sua Empresa"}`;
         const formattedPhone = formatPhoneNumberForZapi(clienteData.telefone);
 
         const response = await fetch(zapiUrl, {

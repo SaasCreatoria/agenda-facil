@@ -68,8 +68,10 @@ export default function ConfigForm({ initialData, onSubmit }: ConfigFormProps) {
       const dataToSubmit = {
         ...data,
         antecedenciaLembreteHoras: data.antecedenciaLembreteHoras === undefined ? 0 : Number(data.antecedenciaLembreteHoras),
+        zapiInstancia: data.zapiInstancia?.trim(),
+        zapiToken: data.zapiToken?.trim(),
       };
-      await onSubmit(dataToSubmit);
+      await onSubmit(dataToSubmit as ConfiguracaoEmpresa);
     },
   });
 
