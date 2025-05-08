@@ -119,9 +119,28 @@ export function useLembretes() {
 
       if (!querySnapshot.empty) {
         const existingDoc = querySnapshot.docs[0];
-        const existingLembrete = denormalizeLembrete({ id: existingDoc.id, ...existingDoc.data() });
-        console.log(`Pending reminder for agendamento ${agendamento.id} already exists in Firestore.`);
-        return existingLembrete;
+        // Update existing pending reminder instead of creating a new one if date or type changed significantly
+        const existingLembreteData = existingDoc.data();
+        const updateNeeded = 
+            new Date(lembreteDto.dataEnvioAgendado).getTime() !== (existingLembreteData.dataEnvioAgendado as Timestamp).toDate().getTime() ||
+            lembreteDto.tipo !== existingLembreteData.tipo ||
+            lembreteDto.mensagem !== existingLembreteData.mensagem;
+
+        if (updateNeeded) {
+            await updateDoc(existingDoc.ref, {
+                dataEnvioAgendado: Timestamp.fromDate(new Date(lembreteDto.dataEnvioAgendado)),
+                tipo: lembreteDto.tipo,
+                mensagem: lembreteDto.mensagem,
+                atualizadoEm: serverTimestamp()
+            });
+            const updatedLembrete = denormalizeLembrete({id: existingDoc.id, ...existingLembreteData, ...lembreteDto, atualizadoEm: new Date().toISOString()});
+            setLembretes(prev => prev.map(l => l.id === updatedLembrete.id ? updatedLembrete : l).sort((a,b) => new Date(b.dataEnvioAgendado).getTime() - new Date(a.dataEnvioAgendado).getTime()));
+            toast({ title: 'Lembrete Atualizado', description: `Lembrete pendente para agendamento atualizado.` });
+            return updatedLembrete;
+        } else {
+            console.log(`Pending reminder for agendamento ${agendamento.id} already exists and is up-to-date.`);
+            return denormalizeLembrete({ id: existingDoc.id, ...existingLembreteData });
+        }
       }
       
       const docRef = await addDoc(lembretesCollectionRef, lembreteDataForFirestore);
@@ -136,8 +155,8 @@ export function useLembretes() {
       toast({ title: 'Lembrete criado', description: `Lembrete para agendamento agendado.` });
       return newLembrete;
     } catch (error) {
-      console.error('Error creating lembrete:', error);
-      toast({ variant: 'destructive', title: 'Erro ao criar lembrete', description: (error as Error).message });
+      console.error('Error creating/updating lembrete:', error);
+      toast({ variant: 'destructive', title: 'Erro ao criar/atualizar lembrete', description: (error as Error).message });
       return null;
     }
   }, [user, toast]);
@@ -186,9 +205,13 @@ export function useLembretes() {
     if (updates.dataEnvioAgendado) {
         updateDataForFirestore.dataEnvioAgendado = Timestamp.fromDate(new Date(updates.dataEnvioAgendado));
     }
+    
+    const newScheduledSendTime = updates.dataEnvioAgendado ? new Date(updates.dataEnvioAgendado).toISOString() : existingLembrete.dataEnvioAgendado;
 
-    const needsStatusReset = (updates.dataEnvioAgendado && updates.dataEnvioAgendado !== existingLembrete.dataEnvioAgendado) ||
-                             (updates.tipo && updates.tipo !== existingLembrete.tipo);
+    const needsStatusReset = (updates.dataEnvioAgendado && newScheduledSendTime !== existingLembrete.dataEnvioAgendado) ||
+                             (updates.tipo && updates.tipo !== existingLembrete.tipo) ||
+                             (updates.mensagem && updates.mensagem !== existingLembrete.mensagem);
+
 
     if (needsStatusReset && (existingLembrete.status === 'ENVIADO' || existingLembrete.status === 'FALHOU')) {
         updateDataForFirestore.status = 'PENDENTE';
@@ -202,6 +225,8 @@ export function useLembretes() {
             ...updates,
             status: updateDataForFirestore.status || existingLembrete.status, 
             atualizadoEm: new Date().toISOString(),
+            // ensure dataEnvioAgendado is an ISO string locally if updated
+            dataEnvioAgendado: newScheduledSendTime,
         });
         setLembretes(prev => prev.map(l => (l.id === id ? updatedLembreteLocal : l)).sort((a,b) => new Date(b.dataEnvioAgendado).getTime() - new Date(a.dataEnvioAgendado).getTime()));
         toast({ title: 'Lembrete Atualizado', description: 'O lembrete foi atualizado com sucesso.' });
@@ -274,7 +299,7 @@ export function useLembretes() {
         }
         const clienteData = clienteSnap.data() as Cliente;
         
-        const whatsappMessage = lembrete.mensagem || `Lembrete: Olá ${clienteData.nome}, seu agendamento para ${agendamentoData.servicoNome || 'serviço'} está marcado para ${formatDateTime(agendamentoData.dataHora)}. Atenciosamente, ${configData.nomeEmpresa || "Sua Empresa"}`;
+        const whatsappMessage = lembrete.mensagem || `Lembrete: Olá ${clienteData.nome}, seu agendamento para ${agendamentoData.servicoNome || 'serviço'} com ${agendamentoData.profissionalNome || 'profissional'} está marcado para ${formatDateTime(agendamentoData.dataHora)}. Atenciosamente, ${configData.nomeEmpresa || "Sua Empresa"}`;
         const formattedPhone = formatPhoneNumberForZapi(clienteData.telefone);
 
         const response = await fetch(zapiUrl, {

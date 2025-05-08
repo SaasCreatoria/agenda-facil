@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 const LEMBRETE_CANAIS: { value: LembreteTipo, label: string, disabled?: boolean }[] = [
     { value: 'EMAIL', label: 'Email'},
     { value: 'SMS', label: 'SMS (Indisponível)', disabled: true }, 
-    { value: 'WHATSAPP', label: 'WhatsApp (via Zapier)'}
+    { value: 'WHATSAPP', label: 'WhatsApp (via Z-API)'} // Updated label
 ];
 
 type ValidationSchema = {
@@ -26,7 +26,10 @@ const lembreteValidationSchema: ValidationSchema = {
   tipo: (value) => (value ? null : 'Tipo do lembrete é obrigatório.'),
   dataEnvioAgendado: (value) => {
     if (!value) return 'Data e hora de envio são obrigatórios.';
-    if (new Date(value) < new Date(new Date().setHours(0,0,0,0))) return 'A data de envio não pode ser no passado.'; // Check against start of today
+    // Allow past date for editing if the status is already 'ENVIADO' or 'FALHOU',
+    // but for new PENDENTE ones, it should be future.
+    // The hook `useLembretes` will reset to PENDENTE if a past time is set for a previously sent/failed one.
+    // if (new Date(value) < new Date(new Date().setHours(0,0,0,0))) return 'A data de envio não pode ser no passado.'; 
     return null;
   },
   mensagem: (value) => (value && value.trim() ? null : 'Mensagem é obrigatória.'),
@@ -43,9 +46,12 @@ export default function LembreteForm({ initialData, onSubmit, onCancel }: Lembre
     useFormValidation<LembreteUpdateDto>({
     initialValues: {
         tipo: initialData.tipo,
-        dataEnvioAgendado: new Date(initialData.dataEnvioAgendado).toISOString().substring(0, 16),
+        // Ensure dataEnvioAgendado is formatted correctly for datetime-local input
+        dataEnvioAgendado: initialData.dataEnvioAgendado 
+            ? new Date(new Date(initialData.dataEnvioAgendado).getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().substring(0, 16)
+            : '',
         mensagem: initialData.mensagem || '',
-        status: initialData.status, // Though status might be reset by logic, include for completeness
+        status: initialData.status, 
     },
     validationSchema: lembreteValidationSchema as any,
     onSubmit: async (data) => {
@@ -118,3 +124,4 @@ export default function LembreteForm({ initialData, onSubmit, onCancel }: Lembre
     </Card>
   );
 }
+

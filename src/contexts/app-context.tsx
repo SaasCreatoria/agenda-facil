@@ -56,7 +56,7 @@ interface AppContextType {
   loadLembretes: () => void;
   createLembreteContext: (agendamento: Agendamento, config: ConfiguracaoEmpresa) => Promise<Lembrete | null>;
   updateLembreteStatus: (id: string, status: Lembrete['status']) => Promise<Lembrete | null>;
-  updateLembrete: (id: string, updates: LembreteUpdateDto) => Promise<Lembrete | null>; // Added
+  updateLembrete: (id: string, updates: LembreteUpdateDto) => Promise<Lembrete | null>; 
   removeLembrete: (id: string) => Promise<boolean>;
   getLembreteById: (id: string) => Lembrete | undefined;
   sendReminder: (lembrete: Lembrete) => Promise<void>;
@@ -67,8 +67,6 @@ interface AppContextType {
   loadingConfiguracao: boolean;
   loadConfiguracao: () => void;
   updateConfiguracao: (newConfig: Partial<ConfiguracaoEmpresa>) => Promise<void>;
-  // loadLembretes: () => void; // Re-expose loadLembretes from AppContextType // Already available via lembretesState.loadLembretes
-  // loadAgendamentos: () => void; // Re-expose loadAgendamentos from AppContextType // Already available via agendamentosState.loadAgendamentos
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -169,16 +167,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     loadLembretes: lembretesState.loadLembretes,
     createLembreteContext: lembretesState.createLembrete,
     updateLembreteStatus: lembretesState.updateLembreteStatus,
-    updateLembrete: lembretesState.updateLembrete, // Added
+    updateLembrete: lembretesState.updateLembrete, 
     removeLembrete: lembretesState.removeLembrete,
     getLembreteById: lembretesState.getLembreteById,
     sendReminder: lembretesState.sendReminder,
 
     configuracao: configuracaoState.configuracao,
-    loadingConfiguracao: configuracaoState.loadingConfiguracao, // Corrected name
+    loadingConfiguracao: configuracaoState.loadingConfiguracao, 
     loadConfiguracao: configuracaoState.loadConfiguracao,
     updateConfiguracao: configuracaoState.updateConfiguracao,
-    // loadLembretes and loadAgendamentos are implicitly available via lembretesState.loadLembretes, etc.
   };
 
   return <AppContext.Provider value={contextValue}>{children}</AppContext.Provider>;
@@ -191,3 +188,4 @@ export function useAppContext() {
   }
   return context;
 }
+

@@ -84,11 +84,10 @@ export default function LembreteTable({ lembretes, agendamentos, onResend, onVie
                   <Button variant="outline" size="icon" onClick={() => onEdit(lembrete)} title="Editar Lembrete">
                     <Pencil className="h-4 w-4" />
                   </Button>
-                  {lembrete.status !== 'ENVIADO' && ( 
-                     <Button variant="outline" size="icon" onClick={() => onResend(lembrete)} title="Reenviar Lembrete">
-                        <Send className="h-4 w-4" />
-                    </Button>
-                  )}
+                  {/* Allow resending even if sent, in case of user desire or to retry failed */}
+                  <Button variant="outline" size="icon" onClick={() => onResend(lembrete)} title={lembrete.status === 'ENVIADO' ? "Reenviar Lembrete" : "Enviar Agora"}>
+                      <Send className="h-4 w-4" />
+                  </Button>
                 </TableCell>
               </TableRow>
             );
@@ -98,3 +97,4 @@ export default function LembreteTable({ lembretes, agendamentos, onResend, onVie
     </div>
   );
 }
+

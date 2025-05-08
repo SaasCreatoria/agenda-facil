@@ -139,7 +139,7 @@ export default function LembretesPage() {
             <DialogHeader>
                 <DialogTitle>Editar Lembrete</DialogTitle>
             </DialogHeader>
-            {editingLembrete && isEditModalOpen && (
+            {editingLembrete && isEditModalOpen && !isLoading && (
                 <LembreteForm
                     initialData={editingLembrete}
                     onSubmit={handleEditSubmit}
@@ -162,3 +162,4 @@ export default function LembretesPage() {
     </>
   );
 }
+
