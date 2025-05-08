@@ -1,8 +1,9 @@
+
 'use client';
 
 import type { ReactNode } from 'react';
 import { createContext, useContext, useEffect, useMemo } from 'react';
-import type { Agendamento, Servico, Profissional, Cliente, Lembrete, ConfiguracaoEmpresa, AgendamentoCreateDto, ServicoCreateDto, ProfissionalCreateDto, ClienteCreateDto } from '@/types';
+import type { Agendamento, Servico, Profissional, Cliente, Lembrete, ConfiguracaoEmpresa, AgendamentoCreateDto, ServicoCreateDto, ProfissionalCreateDto, ClienteCreateDto, LembreteUpdateDto } from '@/types';
 import { useAgendamentos } from '@/hooks/useAgendamentos';
 import { useServicos } from '@/hooks/useServicos';
 import { useProfissionais } from '@/hooks/useProfissionais';
@@ -53,9 +54,9 @@ interface AppContextType {
   lembretes: Lembrete[];
   loadingLembretes: boolean;
   loadLembretes: () => void;
-  // createLembrete is exposed but typically called via agendamentos hook
   createLembreteContext: (agendamento: Agendamento, config: ConfiguracaoEmpresa) => Promise<Lembrete | null>;
   updateLembreteStatus: (id: string, status: Lembrete['status']) => Promise<Lembrete | null>;
+  updateLembrete: (id: string, updates: LembreteUpdateDto) => Promise<Lembrete | null>; // Added
   removeLembrete: (id: string) => Promise<boolean>;
   getLembreteById: (id: string) => Lembrete | undefined;
   sendReminder: (lembrete: Lembrete) => Promise<void>;
@@ -66,8 +67,8 @@ interface AppContextType {
   loadingConfiguracao: boolean;
   loadConfiguracao: () => void;
   updateConfiguracao: (newConfig: Partial<ConfiguracaoEmpresa>) => Promise<void>;
-  loadLembretes: () => void; // Re-expose loadLembretes from AppContextType
-  loadAgendamentos: () => void; // Re-expose loadAgendamentos from AppContextType
+  // loadLembretes: () => void; // Re-expose loadLembretes from AppContextType // Already available via lembretesState.loadLembretes
+  // loadAgendamentos: () => void; // Re-expose loadAgendamentos from AppContextType // Already available via agendamentosState.loadAgendamentos
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -119,14 +120,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       if (lembreteToSend) {
         lembretesState.sendReminder(lembreteToSend); 
-        // After this, sendReminder will updateLembreteStatus, which calls setLembretes.
-        // The useEffect will run again due to lembretesState.lembretes changing.
-        // If other reminders are due, the next one will be picked up in the subsequent run.
       }
     };
 
-    checkAndSendReminders(); // Check immediately on load/change
-    const intervalId = setInterval(checkAndSendReminders, 5 * 60 * 1000); // Then check every 5 minutes
+    checkAndSendReminders(); 
+    const intervalId = setInterval(checkAndSendReminders, 5 * 60 * 1000); 
 
     return () => clearInterval(intervalId);
   }, [lembretesState.lembretes, lembretesState.sendReminder, lembretesState.loading, configuracaoState.loadingConfiguracao, configuracaoState.configuracao.fusoHorario]);
@@ -169,18 +167,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     lembretes: lembretesState.lembretes,
     loadingLembretes: lembretesState.loading,
     loadLembretes: lembretesState.loadLembretes,
-    createLembreteContext: lembretesState.createLembrete, // Expose original createLembrete
+    createLembreteContext: lembretesState.createLembrete,
     updateLembreteStatus: lembretesState.updateLembreteStatus,
+    updateLembrete: lembretesState.updateLembrete, // Added
     removeLembrete: lembretesState.removeLembrete,
     getLembreteById: lembretesState.getLembreteById,
     sendReminder: lembretesState.sendReminder,
 
     configuracao: configuracaoState.configuracao,
-    loadingConfiguracao: configuracaoState.loading,
+    loadingConfiguracao: configuracaoState.loadingConfiguracao, // Corrected name
     loadConfiguracao: configuracaoState.loadConfiguracao,
     updateConfiguracao: configuracaoState.updateConfiguracao,
-    loadLembretes: lembretesState.loadLembretes, // Expose function to reload lembretes
-    loadAgendamentos: agendamentosState.loadAgendamentos, // Expose function to reload agendamentos
+    // loadLembretes and loadAgendamentos are implicitly available via lembretesState.loadLembretes, etc.
   };
 
   return <AppContext.Provider value={contextValue}>{children}</AppContext.Provider>;

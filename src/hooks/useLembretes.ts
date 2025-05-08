@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import type { Lembrete, LembreteCreateDto, Agendamento, ConfiguracaoEmpresa, Cliente } from '@/types';
+import type { Lembrete, LembreteCreateDto, LembreteUpdateDto, Agendamento, ConfiguracaoEmpresa, Cliente } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
 import { db } from '@/firebase/config';
@@ -70,7 +70,7 @@ export function useLembretes() {
 
   useEffect(() => {
     loadLembretes();
-  }, [loadLembretes, user]); // Added user to dependencies
+  }, [loadLembretes, user]);
 
   const createLembrete = useCallback(async (agendamento: Agendamento, config: ConfiguracaoEmpresa): Promise<Lembrete | null> => {
     if (!user) {
@@ -89,7 +89,7 @@ export function useLembretes() {
     const lembreteDto: LembreteCreateDto = {
       agendamentoId: agendamento.id,
       tipo: config.canalLembretePadrao,
-      dataEnvioAgendado: dataEnvioAgendado.toISOString(), // Keep as ISO string for DTO
+      dataEnvioAgendado: dataEnvioAgendado.toISOString(),
       status: 'PENDENTE',
       mensagem: `Lembrete: Seu agendamento para ${agendamento.servicoNome || 'serviço'} com ${agendamento.profissionalNome || 'profissional'} está marcado para ${formatDateTime(dataHoraAgendamento)}.`,
     };
@@ -102,7 +102,6 @@ export function useLembretes() {
     };
 
     try {
-      // Check if a PENDENTE reminder already exists for this appointment in Firestore
       const lembretesCollectionRef = collection(db, 'users', user.uid, 'lembretes');
       const q = query(lembretesCollectionRef, 
                       where("agendamentoId", "==", agendamento.id), 
@@ -110,10 +109,8 @@ export function useLembretes() {
       const querySnapshot = await getDocs(q);
 
       if (!querySnapshot.empty) {
-        // If an existing pending reminder is found, update it if necessary or just return it.
         const existingDoc = querySnapshot.docs[0];
         const existingLembrete = denormalizeLembrete({ id: existingDoc.id, ...existingDoc.data() });
-        // For now, assume if it exists, we don't create a new one. Could add update logic here.
         console.log(`Pending reminder for agendamento ${agendamento.id} already exists in Firestore.`);
         return existingLembrete;
       }
@@ -121,8 +118,7 @@ export function useLembretes() {
       const docRef = await addDoc(lembretesCollectionRef, lembreteDataForFirestore);
       const newLembrete = denormalizeLembrete({
         id: docRef.id,
-        ...lembreteDto, // Original DTO data
-        // Timestamps will be set by Firestore, so use approximate local values or re-fetch for perfect accuracy
+        ...lembreteDto,
         criadoEm: new Date().toISOString(), 
         atualizadoEm: new Date().toISOString()
       });
@@ -139,7 +135,7 @@ export function useLembretes() {
 
   const updateLembreteStatus = useCallback(async (id: string, status: Lembrete['status']): Promise<Lembrete | null> => {
     if (!user) {
-      toast({ variant: 'destructive', title: 'Não autenticado', description: 'Erro ao atualizar status do lembrete.' });
+      // toast({ variant: 'destructive', title: 'Não autenticado', description: 'Erro ao atualizar status do lembrete.' }); // Toast is handled by caller or updateLembrete
       return null;
     }
     try {
@@ -152,19 +148,65 @@ export function useLembretes() {
         const updatedLembreteLocal = denormalizeLembrete({
           ...existingLembrete,
           status,
-          atualizadoEm: new Date().toISOString(), // Approximate for UI
+          atualizadoEm: new Date().toISOString(),
         });
-        setLembretes(prev => prev.map(l => (l.id === id ? updatedLembreteLocal : l)));
-        // Toast moved to sendReminder to avoid double toasting
+        setLembretes(prev => prev.map(l => (l.id === id ? updatedLembreteLocal : l)).sort((a,b) => new Date(b.dataEnvioAgendado).getTime() - new Date(a.dataEnvioAgendado).getTime()));
         return updatedLembreteLocal;
       }
       return null;
     } catch (error) {
       console.error('Error updating lembrete status:', error);
-      toast({ variant: 'destructive', title: 'Erro ao atualizar lembrete', description: (error as Error).message });
-      return null;
+      // toast({ variant: 'destructive', title: 'Erro ao atualizar lembrete', description: (error as Error).message }); // Toast is handled by caller or updateLembrete
+      throw error; // Re-throw to be caught by calling function
+    }
+  }, [user, lembretes]);
+
+  const updateLembrete = useCallback(async (id: string, updates: LembreteUpdateDto): Promise<Lembrete | null> => {
+    if (!user) {
+        toast({ variant: 'destructive', title: 'Não autenticado', description: 'Você precisa estar logado para atualizar um lembrete.' });
+        return null;
+    }
+    const lembreteDocRef = doc(db, 'users', user.uid, 'lembretes', id);
+    const existingLembrete = lembretes.find(l => l.id === id);
+
+    if (!existingLembrete) {
+        toast({ variant: 'destructive', title: 'Erro', description: 'Lembrete não encontrado.' });
+        return null;
+    }
+
+    const updateDataForFirestore: any = { ...updates, atualizadoEm: serverTimestamp() };
+
+    if (updates.dataEnvioAgendado) {
+        updateDataForFirestore.dataEnvioAgendado = Timestamp.fromDate(new Date(updates.dataEnvioAgendado));
+    }
+
+    // If dataEnvioAgendado or tipo is changed, and status was 'ENVIADO' or 'FALHOU', reset to 'PENDENTE'
+    const needsStatusReset = (updates.dataEnvioAgendado && updates.dataEnvioAgendado !== existingLembrete.dataEnvioAgendado) ||
+                             (updates.tipo && updates.tipo !== existingLembrete.tipo);
+
+    if (needsStatusReset && (existingLembrete.status === 'ENVIADO' || existingLembrete.status === 'FALHOU')) {
+        updateDataForFirestore.status = 'PENDENTE';
+    }
+
+
+    try {
+        await updateDoc(lembreteDocRef, updateDataForFirestore);
+        const updatedLembreteLocal = denormalizeLembrete({
+            ...existingLembrete,
+            ...updates,
+            status: updateDataForFirestore.status || existingLembrete.status, // Use new status if reset
+            atualizadoEm: new Date().toISOString(),
+        });
+        setLembretes(prev => prev.map(l => (l.id === id ? updatedLembreteLocal : l)).sort((a,b) => new Date(b.dataEnvioAgendado).getTime() - new Date(a.dataEnvioAgendado).getTime()));
+        toast({ title: 'Lembrete Atualizado', description: 'O lembrete foi atualizado com sucesso.' });
+        return updatedLembreteLocal;
+    } catch (error) {
+        console.error('Error updating lembrete:', error);
+        toast({ variant: 'destructive', title: 'Erro ao Atualizar Lembrete', description: (error as Error).message });
+        return null;
     }
   }, [user, toast, lembretes]);
+
 
   const removeLembrete = useCallback(async (id: string): Promise<boolean> => {
     if (!user) {
@@ -199,16 +241,15 @@ export function useLembretes() {
 
     try {
       if (lembrete.tipo === 'WHATSAPP') {
-        // Fetch config for Zapier URL
         const configDocRef = doc(db, 'users', user.uid, 'configuracao', 'main');
         const configSnap = await getDoc(configDocRef);
-        if (!configSnap.exists() || !configSnap.data()?.zapierWhatsappWebhookUrl) {
+        const zapierWebhookUrl = configSnap.data()?.zapierWhatsappWebhookUrl;
+
+        if (!zapierWebhookUrl) {
           errorMessage = 'URL do webhook Zapier para WhatsApp não configurada.';
           throw new Error(errorMessage);
         }
-        const webhookUrl = configSnap.data()?.zapierWhatsappWebhookUrl;
 
-        // Fetch agendamento and cliente details for WhatsApp message
         const agendamentoDocRef = doc(db, 'users', user.uid, 'agendamentos', lembrete.agendamentoId);
         const agendamentoSnap = await getDoc(agendamentoDocRef);
         if (!agendamentoSnap.exists()) {
@@ -227,13 +268,12 @@ export function useLembretes() {
         
         const whatsappMessage = lembrete.mensagem || `Lembrete: Olá ${clienteData.nome}, seu agendamento para ${agendamentoData.servicoNome || 'serviço'} está marcado para ${formatDateTime(agendamentoData.dataHora)}.`;
 
-        const response = await fetch(webhookUrl, {
+        const response = await fetch(zapierWebhookUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            to: clienteData.telefone, // Assuming this is the WhatsApp number
+            to: clienteData.telefone,
             text: whatsappMessage,
-            // Add any other data Zapier expects
             clienteNome: clienteData.nome,
             servicoNome: agendamentoData.servicoNome,
             dataHora: formatDateTime(agendamentoData.dataHora),
@@ -250,11 +290,15 @@ export function useLembretes() {
         success = true;
 
       } else if (lembrete.tipo === 'EMAIL') {
-        // Simulate Email sending
-        console.log(`Simulating sending EMAIL reminder ${lembrete.id}...`);
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        console.log(`Simulating sending EMAIL reminder ${lembrete.id} with message: "${lembrete.mensagem}"`);
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network delay
         success = Math.random() > 0.05; // 95% success rate for email
         if(!success) errorMessage = "Falha simulada no envio de Email.";
+      
+      } else if (lembrete.tipo === 'SMS') {
+        console.warn(`SMS reminders are not currently supported. Lembrete ID: ${lembrete.id}`);
+        errorMessage = `Envio de SMS não está implementado.`;
+        success = false; // Mark as failed if SMS is selected but not supported
       } else {
         console.warn(`Tipo de lembrete ${lembrete.tipo} não implementado para envio.`);
         errorMessage = `Tipo de lembrete ${lembrete.tipo} não suportado.`;
@@ -266,7 +310,19 @@ export function useLembretes() {
     }
     
     const newStatus = success ? 'ENVIADO' : 'FALHOU';
-    await updateLembreteStatus(lembrete.id, newStatus);
+    try {
+        await updateLembreteStatus(lembrete.id, newStatus);
+    } catch (updateError: any) {
+        // If updating status fails, the toast should reflect the sending attempt's outcome
+        // and potentially add info about the status update failure.
+        toast({
+            title: `Lembrete ${success ? 'Enviado (falha ao atualizar status)' : 'Falhou'}`,
+            description: (errorMessage || `Falha ao processar lembrete (${lembrete.tipo}).`) + ` Erro ao salvar status: ${updateError.message}`,
+            variant: 'destructive'
+        });
+        return; // Exit if status update failed
+    }
+
 
     toast({
         title: `Lembrete ${success ? 'Enviado' : 'Falhou'}`,
@@ -284,9 +340,9 @@ export function useLembretes() {
     loadLembretes,
     createLembrete,
     updateLembreteStatus,
+    updateLembrete,
     removeLembrete,
     getLembreteById,
     sendReminder,
   };
 }
-

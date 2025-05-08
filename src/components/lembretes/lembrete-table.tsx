@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { Lembrete, Agendamento } from '@/types';
@@ -5,16 +6,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatDateTime } from '@/utils/helpers';
-import { Send, Eye, AlertTriangle } from 'lucide-react';
+import { Send, Eye, AlertTriangle, Pencil } from 'lucide-react';
 
 interface LembreteTableProps {
   lembretes: Lembrete[];
   agendamentos: Agendamento[]; // To get agendamento details
   onResend: (lembrete: Lembrete) => void;
   onViewDetails: (lembrete: Lembrete, agendamento?: Agendamento) => void;
+  onEdit: (lembrete: Lembrete) => void; // Added for editing
 }
 
-export default function LembreteTable({ lembretes, agendamentos, onResend, onViewDetails }: LembreteTableProps) {
+export default function LembreteTable({ lembretes, agendamentos, onResend, onViewDetails, onEdit }: LembreteTableProps) {
   
   const getAgendamentoForLembrete = (agendamentoId: string): Agendamento | undefined => {
     return agendamentos.find(a => a.id === agendamentoId);
@@ -25,7 +27,7 @@ export default function LembreteTable({ lembretes, agendamentos, onResend, onVie
       case 'PENDENTE':
         return 'secondary';
       case 'ENVIADO':
-        return 'default'; // Consider a 'success' variant if available
+        return 'default'; 
       case 'FALHOU':
         return 'destructive';
       default:
@@ -79,7 +81,10 @@ export default function LembreteTable({ lembretes, agendamentos, onResend, onVie
                   <Button variant="outline" size="icon" onClick={() => onViewDetails(lembrete, agendamento)} title="Ver Detalhes">
                     <Eye className="h-4 w-4" />
                   </Button>
-                  {lembrete.status !== 'ENVIADO' && ( // Allow resend if PENDENTE or FALHOU
+                  <Button variant="outline" size="icon" onClick={() => onEdit(lembrete)} title="Editar Lembrete">
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  {lembrete.status !== 'ENVIADO' && ( 
                      <Button variant="outline" size="icon" onClick={() => onResend(lembrete)} title="Reenviar Lembrete">
                         <Send className="h-4 w-4" />
                     </Button>
@@ -93,6 +98,3 @@ export default function LembreteTable({ lembretes, agendamentos, onResend, onVie
     </div>
   );
 }
-
-// Placeholder for Detail Modal if needed later
-// export function LembreteDetailModal({ lembrete, agendamento, isOpen, onClose }) { ... }

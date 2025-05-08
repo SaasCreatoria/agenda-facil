@@ -92,7 +92,5 @@ export type ProfissionalCreateDto = Omit<Profissional, 'id' | 'criadoEm' | 'atua
 export type ClienteCreateDto = Omit<Cliente, 'id' | 'criadoEm' | 'atualizadoEm'>;
 export type LembreteCreateDto = Omit<Lembrete, 'id' | 'criadoEm' | 'atualizadoEm'>;
 
-
-
-
-
+// DTO for updates
+export type LembreteUpdateDto = Partial<Omit<Lembrete, 'id' | 'criadoEm' | 'atualizadoEm' | 'agendamentoId'>>;
