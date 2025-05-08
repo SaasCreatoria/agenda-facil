@@ -22,6 +22,15 @@ import {
 } from 'firebase/firestore';
 import { formatDateTime } from '@/utils/helpers';
 
+// Helper to format phone number for Z-API (E.164 format, assuming Brazil for now)
+const formatPhoneNumberForZapi = (phone: string): string => {
+  const digitsOnly = phone.replace(/\D/g, '');
+  if (digitsOnly.startsWith('55') && digitsOnly.length >= 12) { // E.g. 55119XXXXXXXX
+    return digitsOnly;
+  }
+  return `55${digitsOnly}`; // Add Brazil country code if not present
+};
+
 export function useLembretes() {
   const [lembretes, setLembretes] = useState<Lembrete[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,7 +40,7 @@ export function useLembretes() {
   const denormalizeLembrete = (lembreteData: any): Lembrete => {
     return {
       ...lembreteData,
-      id: lembreteData.id, // Ensure id is present
+      id: lembreteData.id, 
       dataEnvioAgendado: lembreteData.dataEnvioAgendado instanceof Timestamp 
         ? lembreteData.dataEnvioAgendado.toDate().toISOString() 
         : lembreteData.dataEnvioAgendado,
@@ -135,7 +144,6 @@ export function useLembretes() {
 
   const updateLembreteStatus = useCallback(async (id: string, status: Lembrete['status']): Promise<Lembrete | null> => {
     if (!user) {
-      // toast({ variant: 'destructive', title: 'Não autenticado', description: 'Erro ao atualizar status do lembrete.' }); // Toast is handled by caller or updateLembrete
       return null;
     }
     try {
@@ -156,8 +164,7 @@ export function useLembretes() {
       return null;
     } catch (error) {
       console.error('Error updating lembrete status:', error);
-      // toast({ variant: 'destructive', title: 'Erro ao atualizar lembrete', description: (error as Error).message }); // Toast is handled by caller or updateLembrete
-      throw error; // Re-throw to be caught by calling function
+      throw error; 
     }
   }, [user, lembretes]);
 
@@ -180,7 +187,6 @@ export function useLembretes() {
         updateDataForFirestore.dataEnvioAgendado = Timestamp.fromDate(new Date(updates.dataEnvioAgendado));
     }
 
-    // If dataEnvioAgendado or tipo is changed, and status was 'ENVIADO' or 'FALHOU', reset to 'PENDENTE'
     const needsStatusReset = (updates.dataEnvioAgendado && updates.dataEnvioAgendado !== existingLembrete.dataEnvioAgendado) ||
                              (updates.tipo && updates.tipo !== existingLembrete.tipo);
 
@@ -194,7 +200,7 @@ export function useLembretes() {
         const updatedLembreteLocal = denormalizeLembrete({
             ...existingLembrete,
             ...updates,
-            status: updateDataForFirestore.status || existingLembrete.status, // Use new status if reset
+            status: updateDataForFirestore.status || existingLembrete.status, 
             atualizadoEm: new Date().toISOString(),
         });
         setLembretes(prev => prev.map(l => (l.id === id ? updatedLembreteLocal : l)).sort((a,b) => new Date(b.dataEnvioAgendado).getTime() - new Date(a.dataEnvioAgendado).getTime()));
@@ -243,26 +249,14 @@ export function useLembretes() {
       if (lembrete.tipo === 'WHATSAPP') {
         const configDocRef = doc(db, 'users', user.uid, 'configuracao', 'main');
         const configSnap = await getDoc(configDocRef);
-        const zapierWebhookUrlFromDb = configSnap.data()?.zapierWhatsappWebhookUrl;
+        const configData = configSnap.data() as ConfiguracaoEmpresa | undefined;
 
-        if (!zapierWebhookUrlFromDb || typeof zapierWebhookUrlFromDb !== 'string') {
-          errorMessage = 'URL do webhook Zapier para WhatsApp não configurada ou é inválida.';
+        if (!configData?.zapiInstancia || !configData?.zapiToken) {
+          errorMessage = 'Configurações da Z-API (Instância/Token) não encontradas ou inválidas.';
           throw new Error(errorMessage);
         }
         
-        let validZapierUrlString: string;
-        try {
-          const parsedUrl = new URL(zapierWebhookUrlFromDb);
-          if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
-            errorMessage = 'URL do webhook Zapier deve usar http ou https.';
-            throw new Error(errorMessage);
-          }
-          validZapierUrlString = parsedUrl.href;
-        } catch (e) {
-          console.error("Invalid Zapier Webhook URL format:", zapierWebhookUrlFromDb, e);
-          errorMessage = 'URL do webhook Zapier para WhatsApp parece estar malformada.';
-          throw new Error(errorMessage);
-        }
+        const zapiUrl = `https://api.z-api.io/instances/${configData.zapiInstancia}/token/${configData.zapiToken}/send-text`;
 
         const agendamentoDocRef = doc(db, 'users', user.uid, 'agendamentos', lembrete.agendamentoId);
         const agendamentoSnap = await getDoc(agendamentoDocRef);
@@ -280,46 +274,44 @@ export function useLembretes() {
         }
         const clienteData = clienteSnap.data() as Cliente;
         
-        const whatsappMessage = lembrete.mensagem || `Lembrete: Olá ${clienteData.nome}, seu agendamento para ${agendamentoData.servicoNome || 'serviço'} está marcado para ${formatDateTime(agendamentoData.dataHora)}.`;
+        const whatsappMessage = lembrete.mensagem || `Lembrete: Olá ${clienteData.nome}, seu agendamento para ${agendamentoData.servicoNome || 'serviço'} está marcado para ${formatDateTime(agendamentoData.dataHora)}. Atenciosamente, ${configData.nomeEmpresa || "Sua Empresa"}`;
+        const formattedPhone = formatPhoneNumberForZapi(clienteData.telefone);
 
-        const response = await fetch(validZapierUrlString, {
+        const response = await fetch(zapiUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            to: clienteData.telefone,
-            text: whatsappMessage,
-            clienteNome: clienteData.nome,
-            servicoNome: agendamentoData.servicoNome,
-            dataHora: formatDateTime(agendamentoData.dataHora),
-            empresaNome: configSnap.data()?.nomeEmpresa || "Sua Empresa"
+            phone: formattedPhone,
+            message: whatsappMessage,
           }),
         });
 
         if (!response.ok) {
-            const errorBody = await response.text();
-            errorMessage = `Falha ao enviar WhatsApp via Zapier: ${response.status} ${errorBody}`;
+            const errorBody = await response.json(); // Z-API usually returns JSON errors
+            console.error("Z-API error response:", errorBody);
+            errorMessage = `Falha ao enviar WhatsApp via Z-API: ${response.status} - ${errorBody?.error || errorBody?.value || 'Erro desconhecido da API'}`;
             throw new Error(errorMessage);
         }
-        console.log("WhatsApp reminder sent via Zapier:", await response.json());
+        console.log("WhatsApp reminder sent via Z-API:", await response.json());
         success = true;
 
       } else if (lembrete.tipo === 'EMAIL') {
         console.log(`Simulating sending EMAIL reminder ${lembrete.id} with message: "${lembrete.mensagem}"`);
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network delay
-        success = Math.random() > 0.05; // 95% success rate for email
+        await new Promise(resolve => setTimeout(resolve, 1000)); 
+        success = Math.random() > 0.05; 
         if(!success) errorMessage = "Falha simulada no envio de Email.";
       
       } else if (lembrete.tipo === 'SMS') {
         console.warn(`SMS reminders are not currently supported. Lembrete ID: ${lembrete.id}`);
         errorMessage = `Envio de SMS não está implementado.`;
-        success = false; // Mark as failed if SMS is selected but not supported
+        success = false; 
       } else {
         console.warn(`Tipo de lembrete ${lembrete.tipo} não implementado para envio.`);
         errorMessage = `Tipo de lembrete ${lembrete.tipo} não suportado.`;
       }
     } catch (error: any) {
         console.error(`Error sending ${lembrete.tipo} reminder:`, error);
-        errorMessage = error.message || "Erro desconhecido ao enviar lembrete."; // Use existing error message if already set
+        errorMessage = errorMessage || error.message || "Erro desconhecido ao enviar lembrete."; 
         success = false;
     }
     
@@ -327,16 +319,13 @@ export function useLembretes() {
     try {
         await updateLembreteStatus(lembrete.id, newStatus);
     } catch (updateError: any) {
-        // If updating status fails, the toast should reflect the sending attempt's outcome
-        // and potentially add info about the status update failure.
         toast({
             title: `Lembrete ${success ? 'Enviado (falha ao atualizar status)' : 'Falhou'}`,
             description: (errorMessage || `Falha ao processar lembrete (${lembrete.tipo}).`) + ` Erro ao salvar status: ${updateError.message}`,
             variant: 'destructive'
         });
-        return; // Exit if status update failed
+        return; 
     }
-
 
     toast({
         title: `Lembrete ${success ? 'Enviado' : 'Falhou'}`,

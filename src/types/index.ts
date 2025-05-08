@@ -52,7 +52,7 @@ export interface Profissional extends Identifiable {
 export interface Cliente extends Identifiable {
   nome: string;
   email?: string;
-  telefone: string;
+  telefone: string; // Store as digits only after validation
   dataNascimento?: string; // ISO string for date
   observacoes?: string;
   criadoEm: any; // Timestamp for Firestore
@@ -75,7 +75,9 @@ export interface ConfiguracaoEmpresa {
   fusoHorario: string; // IANA timezone name e.g., "America/Sao_Paulo"
   antecedenciaLembreteHoras: number; // e.g., 24 for 24 hours before
   canalLembretePadrao: LembreteTipo;
-  zapierWhatsappWebhookUrl?: string; // URL for Zapier Webhook for WhatsApp
+  // Z-API Integration
+  zapiInstancia?: string; 
+  zapiToken?: string;
   // Public page customization
   publicPageTitle?: string;
   publicPageWelcomeMessage?: string;
@@ -94,3 +96,4 @@ export type LembreteCreateDto = Omit<Lembrete, 'id' | 'criadoEm' | 'atualizadoEm
 
 // DTO for updates
 export type LembreteUpdateDto = Partial<Omit<Lembrete, 'id' | 'criadoEm' | 'atualizadoEm' | 'agendamentoId'>>;
+

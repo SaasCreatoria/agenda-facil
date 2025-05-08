@@ -17,7 +17,8 @@ type ValidationSchema = {
   fusoHorario: (value: string) => string | null;
   antecedenciaLembreteHoras: (value: number) => string | null;
   canalLembretePadrao: (value: string) => string | null;
-  zapierWhatsappWebhookUrl?: (value: string) => string | null;
+  zapiInstancia?: (value: string) => string | null;
+  zapiToken?: (value: string) => string | null;
   publicPageTitle?: (value: string) => string | null;
   publicPageWelcomeMessage?: (value: string) => string | null;
   publicPagePrimaryColor?: (value: string) => string | null;
@@ -25,22 +26,20 @@ type ValidationSchema = {
 };
 
 const HSL_REGEX = /^\d{1,3}\s+\d{1,3}%\s+\d{1,3}%$/;
-const URL_REGEX = /^(ftp|http|https):\/\/[^ "]+$/;
 
 const configValidationSchema: ValidationSchema = {
   nomeEmpresa: (value) => (value && value.trim() ? null : 'Nome da empresa é obrigatório.'),
   fusoHorario: (value) => (value ? null : 'Fuso horário é obrigatório.'),
   antecedenciaLembreteHoras: (value) => (value !== undefined && value > 0 ? null : 'Antecedência deve ser maior que zero horas.'),
   canalLembretePadrao: (value) => (value ? null : 'Canal de lembrete padrão é obrigatório.'),
-  zapierWhatsappWebhookUrl: (value) => (!value || URL_REGEX.test(value) ? null : 'URL do webhook Zapier inválida.'),
+  zapiInstancia: (value) => (!value || value.trim().length > 0 ? null : 'Instância Z-API não pode ser apenas espaços em branco.'),
+  zapiToken: (value) => (!value || value.trim().length > 0 ? null : 'Token Z-API não pode ser apenas espaços em branco.'),
   publicPageTitle: (value) => (value && value.trim() ? null : 'Título da página pública é obrigatório.'),
   publicPageWelcomeMessage: (value) => (value && value.trim() ? null : 'Mensagem de boas-vindas é obrigatória.'),
   publicPagePrimaryColor: (value) => (!value || HSL_REGEX.test(value) ? null : 'Cor primária deve ser um HSL válido (e.g., "180 100% 25%") ou vazia.'),
   publicPageAccentColor: (value) => (!value || HSL_REGEX.test(value) ? null : 'Cor de destaque deve ser um HSL válido (e.g., "240 100% 27%") ou vazia.'),
 };
 
-// A more comprehensive list might be needed or fetched.
-// For simplicity, a small list of common IANA timezones.
 const TIMEZONE_OPTIONS = [
   { value: 'America/Sao_Paulo', label: 'America/Sao_Paulo (GMT-3)' },
   { value: 'America/New_York', label: 'America/New_York (GMT-4/-5 EST/EDT)' },
@@ -50,10 +49,10 @@ const TIMEZONE_OPTIONS = [
   { value: 'Australia/Sydney', label: 'Australia/Sydney (GMT+10/+11 AEST/AEDT)' },
 ];
 
-const LEMBRETE_CANAIS: { value: LembreteTipo, label: string}[] = [
+const LEMBRETE_CANAIS: { value: LembreteTipo, label: string, disabled?: boolean}[] = [
     { value: 'EMAIL', label: 'Email'},
-    { value: 'SMS', label: 'SMS (Indisponível)'}, 
-    { value: 'WHATSAPP', label: 'WhatsApp (via Zapier)'}
+    { value: 'SMS', label: 'SMS (Indisponível)', disabled: true}, 
+    { value: 'WHATSAPP', label: 'WhatsApp (via Z-API)'}
 ];
 
 interface ConfigFormProps {
@@ -135,7 +134,7 @@ export default function ConfigForm({ initialData, onSubmit }: ConfigFormProps) {
       </div>
       
       <Separator className="my-6" />
-      <h3 className="text-lg font-medium mb-4 -mt-2">Configurações de Lembretes</h3>
+      <h3 className="text-lg font-medium mb-4 -mt-2">Configurações de Lembretes e WhatsApp (Z-API)</h3>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
@@ -156,7 +155,7 @@ export default function ConfigForm({ initialData, onSubmit }: ConfigFormProps) {
             <SelectTrigger id="canalLembretePadrao"><SelectValue placeholder="Selecione o canal" /></SelectTrigger>
             <SelectContent>
               {LEMBRETE_CANAIS.map(canal => 
-                <SelectItem key={canal.value} value={canal.value} disabled={canal.label.includes('Indisponível')}>
+                <SelectItem key={canal.value} value={canal.value} disabled={canal.disabled}>
                     {canal.label}
                 </SelectItem>)}
             </SelectContent>
@@ -164,20 +163,33 @@ export default function ConfigForm({ initialData, onSubmit }: ConfigFormProps) {
            {errors.canalLembretePadrao && <p className="text-sm text-destructive mt-1">{errors.canalLembretePadrao}</p>}
         </div>
       </div>
-       <div className="space-y-2">
-        <Label htmlFor="zapierWhatsappWebhookUrl">Zapier Webhook URL para WhatsApp (Opcional)</Label>
-        <Input 
-          id="zapierWhatsappWebhookUrl" 
-          name="zapierWhatsappWebhookUrl" 
-          value={values.zapierWhatsappWebhookUrl || ''} 
-          onChange={handleInputChange}
-          placeholder="https://hooks.zapier.com/hooks/catch/..."
-        />
-        {errors.zapierWhatsappWebhookUrl && <p className="text-sm text-destructive mt-1">{errors.zapierWhatsappWebhookUrl}</p>}
-        <p className="text-xs text-muted-foreground">
-          Se preenchido, os lembretes via WhatsApp serão enviados através deste webhook do Zapier.
-        </p>
+       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-2">
+            <Label htmlFor="zapiInstancia">Z-API Instância (Opcional)</Label>
+            <Input 
+            id="zapiInstancia" 
+            name="zapiInstancia" 
+            value={values.zapiInstancia || ''} 
+            onChange={handleInputChange}
+            placeholder="Sua Instância Z-API"
+            />
+            {errors.zapiInstancia && <p className="text-sm text-destructive mt-1">{errors.zapiInstancia}</p>}
+        </div>
+        <div className="space-y-2">
+            <Label htmlFor="zapiToken">Z-API Token (Opcional)</Label>
+            <Input 
+            id="zapiToken" 
+            name="zapiToken" 
+            value={values.zapiToken || ''} 
+            onChange={handleInputChange}
+            placeholder="Seu Token Z-API"
+            />
+            {errors.zapiToken && <p className="text-sm text-destructive mt-1">{errors.zapiToken}</p>}
+        </div>
       </div>
+      <p className="text-xs text-muted-foreground">
+        Se preenchidos, os lembretes via WhatsApp serão enviados através da sua conta Z-API.
+      </p>
 
 
       <Separator className="my-6" />

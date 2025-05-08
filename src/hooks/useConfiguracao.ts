@@ -14,14 +14,14 @@ const DEFAULT_CONFIG: ConfiguracaoEmpresa = {
   fusoHorario: 'America/Sao_Paulo',
   antecedenciaLembreteHoras: 24,
   canalLembretePadrao: 'EMAIL',
-  zapierWhatsappWebhookUrl: '', // Added field
+  zapiInstancia: '', 
+  zapiToken: '', 
   publicPageTitle: 'Agende seu Horário',
   publicPageWelcomeMessage: 'Rápido, fácil e seguro.',
   publicPagePrimaryColor: '', 
   publicPageAccentColor: '', 
-  // Add criadoEm and atualizadoEm for consistency, though not strictly part of user-facing config
-  criadoEm: new Date().toISOString(), // Placeholder, will be overwritten by serverTimestamp
-  atualizadoEm: new Date().toISOString(), // Placeholder
+  criadoEm: new Date().toISOString(), 
+  atualizadoEm: new Date().toISOString(), 
 };
 
 const CONFIG_DOC_ID = 'main'; // Static ID for the user's configuration document
@@ -45,17 +45,14 @@ export function useConfiguracao() {
 
       if (docSnap.exists()) {
         const firestoreData = docSnap.data() as Partial<ConfiguracaoEmpresa>;
-        // Merge with defaults to ensure all fields are present, especially new ones not in Firestore yet
         const mergedConfig = { 
           ...DEFAULT_CONFIG, 
           ...firestoreData,
-          // Ensure timestamps are properly converted if they exist
           criadoEm: firestoreData.criadoEm && firestoreData.criadoEm.toDate ? firestoreData.criadoEm.toDate().toISOString() : DEFAULT_CONFIG.criadoEm,
           atualizadoEm: firestoreData.atualizadoEm && firestoreData.atualizadoEm.toDate ? firestoreData.atualizadoEm.toDate().toISOString() : DEFAULT_CONFIG.atualizadoEm,
         };
         setConfiguracao(mergedConfig);
       } else {
-        // No config in Firestore, save the default one
         const initialConfigToSave = {
           ...DEFAULT_CONFIG,
           criadoEm: serverTimestamp(),
@@ -64,15 +61,15 @@ export function useConfiguracao() {
         await setDoc(configDocRef, initialConfigToSave);
         setConfiguracao({
             ...DEFAULT_CONFIG,
-            criadoEm: new Date().toISOString(), // client-side approximation
-            atualizadoEm: new Date().toISOString(), // client-side approximation
+            criadoEm: new Date().toISOString(), 
+            atualizadoEm: new Date().toISOString(), 
         }); 
         console.log("Default configuration saved to Firestore for user:", user.uid);
       }
     } catch (error) {
       console.error('Error loading configuration from Firestore:', error);
       toast({ variant: 'destructive', title: 'Erro ao carregar configuração', description: (error as Error).message });
-      setConfiguracao(DEFAULT_CONFIG); // Fallback to default
+      setConfiguracao(DEFAULT_CONFIG); 
     } finally {
       setLoading(false);
     }
@@ -80,7 +77,7 @@ export function useConfiguracao() {
 
   useEffect(() => {
     loadConfiguracao();
-  }, [loadConfiguracao, user]); // Add user as dependency to reload when user changes
+  }, [loadConfiguracao, user]); 
 
   const updateConfiguracao = async (newConfig: Partial<Omit<ConfiguracaoEmpresa, 'criadoEm' | 'atualizadoEm'>>): Promise<void> => {
     if (!user) {
@@ -95,11 +92,10 @@ export function useConfiguracao() {
       };
       await setDoc(configDocRef, configToUpdate, { merge: true });
       
-      // Update local state optimistically or after confirmation
       setConfiguracao(prev => ({ 
         ...prev, 
         ...newConfig,
-        atualizadoEm: new Date().toISOString() // client-side approximation
+        atualizadoEm: new Date().toISOString() 
       }));
       toast({ title: 'Configuração salva', description: 'Suas configurações foram atualizadas.' });
     } catch (error) {
@@ -110,7 +106,7 @@ export function useConfiguracao() {
 
   return {
     configuracao,
-    loadingConfiguracao: loading, // Renamed for clarity in AppContext
+    loadingConfiguracao: loading, 
     loadConfiguracao,
     updateConfiguracao,
   };
