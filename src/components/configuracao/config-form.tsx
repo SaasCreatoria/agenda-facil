@@ -32,8 +32,8 @@ const configValidationSchema: ValidationSchema = {
   fusoHorario: (value) => (value ? null : 'Fuso horário é obrigatório.'),
   antecedenciaLembreteHoras: (value) => (value !== undefined && value > 0 ? null : 'Antecedência deve ser maior que zero horas.'),
   canalLembretePadrao: (value) => (value ? null : 'Canal de lembrete padrão é obrigatório.'),
-  zapiInstancia: (value) => (!value || value.trim().length > 0 ? null : 'Instância Z-API não pode ser apenas espaços em branco.'),
-  zapiToken: (value) => (!value || value.trim().length > 0 ? null : 'Token Z-API não pode ser apenas espaços em branco.'),
+  zapiInstancia: (value) => (!value || value.trim().length > 0 ? null : 'ID da Instância Z-API não pode ser apenas espaços em branco.'),
+  zapiToken: (value) => (!value || value.trim().length > 0 ? null : 'Token da Instância Z-API não pode ser apenas espaços em branco.'),
   publicPageTitle: (value) => (value && value.trim() ? null : 'Título da página pública é obrigatório.'),
   publicPageWelcomeMessage: (value) => (value && value.trim() ? null : 'Mensagem de boas-vindas é obrigatória.'),
   publicPagePrimaryColor: (value) => (!value || HSL_REGEX.test(value) ? null : 'Cor primária deve ser um HSL válido (e.g., "180 100% 25%") ou vazia.'),
@@ -167,24 +167,24 @@ export default function ConfigForm({ initialData, onSubmit }: ConfigFormProps) {
       </div>
        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
-            <Label htmlFor="zapiInstancia">Z-API Instância (Opcional)</Label>
+            <Label htmlFor="zapiInstancia">Z-API ID da Instância (Opcional)</Label>
             <Input 
             id="zapiInstancia" 
             name="zapiInstancia" 
             value={values.zapiInstancia || ''} 
             onChange={handleInputChange}
-            placeholder="Sua Instância Z-API"
+            placeholder="Seu ID da Instância Z-API"
             />
             {errors.zapiInstancia && <p className="text-sm text-destructive mt-1">{errors.zapiInstancia}</p>}
         </div>
         <div className="space-y-2">
-            <Label htmlFor="zapiToken">Z-API Token (Opcional)</Label>
+            <Label htmlFor="zapiToken">Z-API Token da Instância (Opcional)</Label>
             <Input 
             id="zapiToken" 
             name="zapiToken" 
             value={values.zapiToken || ''} 
             onChange={handleInputChange}
-            placeholder="Seu Token Z-API"
+            placeholder="Seu Token da Instância Z-API"
             />
             {errors.zapiToken && <p className="text-sm text-destructive mt-1">{errors.zapiToken}</p>}
         </div>
