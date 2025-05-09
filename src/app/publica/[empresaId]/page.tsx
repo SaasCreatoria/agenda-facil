@@ -12,7 +12,7 @@ import PublicBookingWizard from '@/components/public/public-booking-wizard';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Agendamento, AgendamentoCreateDto, Cliente, ClienteCreateDto, ConfiguracaoEmpresa, Servico, Profissional, Testimonial } from '@/types'; 
 import { db } from '@/firebase/config';
-import { collection, doc, getDoc, getDocs, addDoc, query, where, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, addDoc, query, where, serverTimestamp, Timestamp, collectionGroup } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { maskCurrency } from '@/utils/helpers';
 
@@ -26,42 +26,79 @@ const placeholderTestimonials: Omit<Testimonial, 'empresaId' | 'id'>[] = [
 
 export default function PaginaPublicaEmpresa() {
   const params = useParams();
-  const empresaId = params.empresaId as string;
+  const empresaIdOrSlug = params.empresaId as string; // This can be either ID or slug
   const { toast } = useToast();
   const router = useRouter();
 
+  const [empresaId, setEmpresaId] = useState<string | null>(null);
   const [configuracao, setConfiguracao] = useState<ConfiguracaoEmpresa | null>(null);
   const [servicos, setServicos] = useState<Servico[]>([]);
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
-  const [clientes, setClientes] = useState<Cliente[]>([]); // For phone check during booking
-  const [testimonials, setTestimonials] = useState<Testimonial[]>([]); // TODO: Fetch actual testimonials
+  const [clientes, setClientes] = useState<Cliente[]>([]); 
+  const [testimonials, setTestimonials] = useState<Testimonial[]>([]); 
 
   const [loading, setLoading] = useState(true);
 
-  // Moved useMemo hooks to be called unconditionally before early returns
   const activeServicos = useMemo(() => servicos.filter(s => s.ativo), [servicos]);
   const activeProfissionais = useMemo(() => profissionais.filter(p => p.ativo), [profissionais]);
 
   useEffect(() => {
+    const resolveEmpresaId = async () => {
+        if (!empresaIdOrSlug) {
+            setLoading(false);
+            console.error("Empresa ID ou Slug ausente.");
+            toast({variant: "destructive", title: "Página não encontrada", description: "O link parece estar incorreto."});
+            router.push('/'); // Or a 404 page
+            return;
+        }
+
+        // Try fetching by direct ID first (common case)
+        const configDocRefById = doc(db, 'users', empresaIdOrSlug, 'configuracao', 'main');
+        const configSnapById = await getDoc(configDocRefById);
+
+        if (configSnapById.exists()) {
+            setEmpresaId(empresaIdOrSlug);
+            return;
+        }
+
+        // If not found by ID, try searching by slug
+        const q = query(collectionGroup(db, 'configuracao'), where("publicPageSlug", "==", empresaIdOrSlug));
+        const querySnapshot = await getDocs(q);
+        
+        if (!querySnapshot.empty) {
+            const foundDoc = querySnapshot.docs[0];
+            const resolvedId = foundDoc.ref.parent.parent?.id; // users/{userId}/configuracao/main
+            if (resolvedId) {
+                setEmpresaId(resolvedId);
+                return;
+            }
+        }
+        
+        // If neither ID nor slug match
+        setLoading(false);
+        toast({variant: "destructive", title: "Página não encontrada", description: "Não foi possível encontrar a empresa especificada."});
+        router.push('/'); // Or a 404 page
+    };
+    resolveEmpresaId();
+  }, [empresaIdOrSlug, router, toast]);
+
+
+  useEffect(() => {
     if (!empresaId) {
-      setLoading(false);
-      // Optionally redirect to a 404 page or show an error
-      console.error("Empresa ID is missing");
+      // setLoading will be handled by resolveEmpresaId if it fails
       return;
     }
 
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Fetch Configuração
         const configDocRef = doc(db, 'users', empresaId, 'configuracao', 'main');
         const configSnap = await getDoc(configDocRef);
         if (configSnap.exists()) {
           const configData = configSnap.data() as ConfiguracaoEmpresa;
           setConfiguracao({
             ...configData,
-            // Ensure timestamps are converted if they exist
             criadoEm: configData.criadoEm instanceof Timestamp ? configData.criadoEm.toDate().toISOString() : configData.criadoEm,
             atualizadoEm: configData.atualizadoEm instanceof Timestamp ? configData.atualizadoEm.toDate().toISOString() : configData.atualizadoEm,
           });
@@ -69,51 +106,49 @@ export default function PaginaPublicaEmpresa() {
           throw new Error("Configuração da empresa não encontrada.");
         }
 
-        // Fetch Serviços
         const servicosColRef = collection(db, 'users', empresaId, 'servicos');
         const servicosQuery = query(servicosColRef, where("ativo", "==", true));
         const servicosSnap = await getDocs(servicosQuery);
         setServicos(servicosSnap.docs.map(d => ({ id: d.id, ...d.data() } as Servico)));
 
-        // Fetch Profissionais (active ones)
         const profColRef = collection(db, 'users', empresaId, 'profissionais');
         const profQuery = query(profColRef, where("ativo", "==", true));
         const profSnap = await getDocs(profQuery);
         setProfissionais(profSnap.docs.map(d => ({ id: d.id, ...d.data() } as Profissional)));
         
-        // Fetch Agendamentos (needed for conflict checking in booking wizard)
         const agendamentosColRef = collection(db, 'users', empresaId, 'agendamentos');
         const agendamentosSnap = await getDocs(agendamentosColRef);
         setAgendamentos(agendamentosSnap.docs.map(d => {
             const data = d.data();
             return {
-                id: d.id,
-                ...data,
+                id: d.id, ...data,
                 dataHora: data.dataHora instanceof Timestamp ? data.dataHora.toDate().toISOString() : data.dataHora,
             } as Agendamento;
         }));
 
-        // Fetch Clientes (needed for phone check in booking wizard)
         const clientesColRef = collection(db, 'users', empresaId, 'clientes');
         const clientesSnap = await getDocs(clientesColRef);
         setClientes(clientesSnap.docs.map(d => ({id: d.id, ...d.data()} as Cliente)));
 
-        // TODO: Fetch actual testimonials for empresaId
-        // For now, using placeholder:
-        setTestimonials(placeholderTestimonials.map((t,i) => ({...t, id: `placeholder-${i}`, empresaId})));
-
+        const testimonialsColRef = collection(db, 'users', empresaId, 'testimonials');
+        const testimonialsQuery = query(testimonialsColRef, orderBy('data', 'desc'), where("rating", ">=", 4)); // Example: show only high-rated
+        const testimonialsSnap = await getDocs(testimonialsQuery);
+        if (testimonialsSnap.empty && placeholderTestimonials.length > 0) {
+             setTestimonials(placeholderTestimonials.map((t,i) => ({...t, id: `placeholder-${i}`, empresaId})));
+        } else {
+            setTestimonials(testimonialsSnap.docs.map(d => ({id: d.id, ...d.data(), data: (d.data().data as Timestamp).toDate().toISOString() } as Testimonial)));
+        }
 
       } catch (error) {
         console.error("Error fetching public page data:", error);
         toast({ variant: "destructive", title: "Erro ao carregar página", description: (error as Error).message });
-        // router.push('/404'); // Or a generic error page
       } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-  }, [empresaId, toast, router]);
+  }, [empresaId, toast]);
 
   const handleCompleteBooking = async (agendamentoData: AgendamentoCreateDto, clienteInputData: ClienteCreateDto): Promise<Agendamento | null> => {
     if (!empresaId || !configuracao) {
@@ -132,8 +167,8 @@ export default function PaginaPublicaEmpresa() {
                 atualizadoEm: serverTimestamp(),
             };
             const clienteDocRef = await addDoc(clientesCollectionRef, newClienteData);
-            cliente = { id: clienteDocRef.id, ...newClienteData, criadoEm: new Date().toISOString(), atualizadoEm: new Date().toISOString() }; // Local approximation
-            setClientes(prev => [...prev, cliente!]); // Update local state
+            cliente = { id: clienteDocRef.id, ...newClienteData, criadoEm: new Date().toISOString(), atualizadoEm: new Date().toISOString() }; 
+            setClientes(prev => [...prev, cliente!]); 
         }
 
         if (!cliente) {
@@ -144,9 +179,9 @@ export default function PaginaPublicaEmpresa() {
         const finalAgendamentoDataForFirestore = {
             ...agendamentoData,
             clienteId: cliente.id,
-            clienteNome: cliente.nome, // Denormalize
-            servicoNome: servicos.find(s => s.id === agendamentoData.servicoId)?.nome || 'N/A', // Denormalize
-            profissionalNome: profissionais.find(p => p.id === agendamentoData.profissionalId)?.nome || 'N/A', // Denormalize
+            clienteNome: cliente.nome, 
+            servicoNome: servicos.find(s => s.id === agendamentoData.servicoId)?.nome || 'N/A', 
+            profissionalNome: profissionais.find(p => p.id === agendamentoData.profissionalId)?.nome || 'N/A', 
             dataHora: Timestamp.fromDate(new Date(agendamentoData.dataHora)),
             criadoEm: serverTimestamp(),
             atualizadoEm: serverTimestamp(),
@@ -165,7 +200,7 @@ export default function PaginaPublicaEmpresa() {
             criadoEm: new Date().toISOString(), 
             atualizadoEm: new Date().toISOString() 
         };
-        setAgendamentos(prev => [...prev, newAgendamento]); // Update local state
+        setAgendamentos(prev => [...prev, newAgendamento]); 
         return newAgendamento;
 
     } catch (error) {
@@ -179,7 +214,6 @@ export default function PaginaPublicaEmpresa() {
     .public-dynamic-theme {
       ${configuracao.publicPagePrimaryColor ? `--primary-hsl: ${configuracao.publicPagePrimaryColor}; --primary: hsl(var(--primary-hsl));` : ''}
       ${configuracao.publicPageAccentColor ? `--accent-hsl: ${configuracao.publicPageAccentColor}; --accent: hsl(var(--accent-hsl));` : ''}
-      /* Add more CSS variable overrides here based on configuracao if needed */
     }
     .public-dynamic-theme .bg-primary { background-color: hsl(var(--primary-hsl, var(--primary))); }
     .public-dynamic-theme .text-primary { color: hsl(var(--primary-hsl, var(--primary))); }
@@ -213,32 +247,35 @@ export default function PaginaPublicaEmpresa() {
     );
   }
   
+  const pageTitle = configuracao.publicPageTitle || configuracao.nomeEmpresa || "Agendamentos";
+  const welcomeMessage = configuracao.publicPageWelcomeMessage || 'Bem-vindo(a) à nossa página de agendamentos!';
+  const businessNameForFooter = configuracao.nomeEmpresa || "Sua Empresa";
+
 
   return (
     <>
       {dynamicStyles && <style>{dynamicStyles}</style>}
       <div className="public-dynamic-theme min-h-screen bg-background text-foreground">
-        {/* Header/Hero Section */}
         <header 
             className="relative py-16 sm:py-24 text-center bg-muted/20 overflow-hidden"
             style={configuracao.heroBannerBase64 ? { backgroundImage: `url(${configuracao.heroBannerBase64})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}
         >
           <div 
-            className={`absolute inset-0 ${configuracao.heroBannerBase64 ? 'bg-black/50' : ''}`} // Dark overlay if banner exists
+            className={`absolute inset-0 ${configuracao.heroBannerBase64 ? 'bg-black/50' : ''}`} 
           />
           <div className="container relative z-10 px-4">
             {configuracao.logoBase64 && (
               <Image 
                 src={configuracao.logoBase64}
-                alt={`Logo de ${configuracao.nomeEmpresa}`}
+                alt={`Logo de ${configuracao.nomeEmpresa || 'empresa'}`}
                 width={120} 
                 height={120} 
                 className="mx-auto mb-4 rounded-full shadow-lg border-2 border-background object-contain h-24 w-24 sm:h-28 sm:w-28 md:h-32 md:w-32"
                 data-ai-hint="company logo"
               />
             )}
-            <h1 className={`text-4xl sm:text-5xl font-bold ${configuracao.heroBannerBase64 ? 'text-primary-foreground' : 'text-primary'}`}>{configuracao.publicPageTitle || configuracao.nomeEmpresa}</h1>
-            <p className={`mt-2 text-lg sm:text-xl max-w-2xl mx-auto ${configuracao.heroBannerBase64 ? 'text-muted-foreground brightness-150 contrast-125' : 'text-muted-foreground'}`}>{configuracao.publicPageWelcomeMessage || 'Bem-vindo(a) à nossa página de agendamentos!'}</p>
+            <h1 className={`text-4xl sm:text-5xl font-bold ${configuracao.heroBannerBase64 ? 'text-primary-foreground' : 'text-primary'}`}>{pageTitle}</h1>
+            <p className={`mt-2 text-lg sm:text-xl max-w-2xl mx-auto ${configuracao.heroBannerBase64 ? 'text-muted-foreground brightness-150 contrast-125' : 'text-muted-foreground'}`}>{welcomeMessage}</p>
             <Button size="lg" className="mt-6 bg-primary hover:bg-primary/90 text-primary-foreground" onClick={() => document.getElementById('booking-wizard')?.scrollIntoView({ behavior: 'smooth' })}>
               Agendar Agora
             </Button>
@@ -246,12 +283,11 @@ export default function PaginaPublicaEmpresa() {
         </header>
 
         <main className="container mx-auto px-4 py-8 sm:py-12">
-          {/* Services Section */}
           <section id="services" className="mb-12 sm:mb-16">
             <h2 className="text-3xl font-bold text-center mb-8 text-primary">Nossos Serviços</h2>
             {activeServicos.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {activeServicos.slice(0, 6).map(servico => ( // Display up to 6 services initially
+                {activeServicos.slice(0, 6).map(servico => ( 
                   <Card key={servico.id} className="shadow-lg hover:shadow-primary/20 transition-shadow">
                     <CardHeader>
                       <CardTitle className="text-xl">{servico.nome}</CardTitle>
@@ -274,7 +310,6 @@ export default function PaginaPublicaEmpresa() {
              )}
           </section>
 
-          {/* Testimonials Section - Placeholder */}
           <section id="testimonials" className="mb-12 sm:mb-16 bg-muted/30 py-12 rounded-lg">
             <h2 className="text-3xl font-bold text-center mb-8 text-primary">O que nossos clientes dizem</h2>
             {testimonials.length > 0 ? (
@@ -304,7 +339,6 @@ export default function PaginaPublicaEmpresa() {
             )}
           </section>
           
-          {/* Booking Wizard Section */}
           <section id="booking-wizard" className="py-8">
              <h2 className="text-3xl font-bold text-center mb-2 text-primary">Faça seu Agendamento</h2>
              <p className="text-center text-muted-foreground mb-8">Selecione o serviço, profissional e horário de sua preferência.</p>
@@ -320,11 +354,8 @@ export default function PaginaPublicaEmpresa() {
 
         <footer className="border-t bg-muted/20 py-8 text-center">
           <div className="container">
-            {configuracao.nomeEmpresa && <p className="font-semibold text-primary">{configuracao.nomeEmpresa}</p>}
-            {/* Placeholder for address/contact - could be added to ConfiguracaoEmpresa */}
-            {/* <p className="text-sm text-muted-foreground"><MapPin size={14} className="inline mr-1"/> Rua Exemplo, 123 - Cidade, Estado</p>
-            <p className="text-sm text-muted-foreground"><PhoneIcon size={14} className="inline mr-1"/> (XX) XXXXX-XXXX</p> */}
-            <p className="text-xs text-muted-foreground mt-4">&copy; {new Date().getFullYear()} {configuracao.nomeEmpresa || 'Sua Empresa'}. Todos os direitos reservados.</p>
+            <p className="font-semibold text-primary">{businessNameForFooter}</p>
+            <p className="text-xs text-muted-foreground mt-4">&copy; {new Date().getFullYear()} {businessNameForFooter}. Todos os direitos reservados.</p>
              <p className="text-xs text-muted-foreground mt-1">
                 Desenvolvido com <a href="https://firebase.google.com/products/studio" target="_blank" rel="noopener noreferrer" className="hover:text-primary underline">Firebase Studio</a>
             </p>
@@ -334,6 +365,4 @@ export default function PaginaPublicaEmpresa() {
     </>
   );
 }
-
-
     

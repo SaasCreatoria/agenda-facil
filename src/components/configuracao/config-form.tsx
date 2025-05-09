@@ -12,9 +12,9 @@ import { Separator } from '@/components/ui/separator';
 import Image from 'next/image';
 import { useState, useEffect, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast'; 
-import { Loader2, Copy, RotateCcw } from 'lucide-react'; // Changed Palette to RotateCcw for reset
+import { Loader2, Copy, RotateCcw } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context'; 
-import { hslToHex, hexToHsl } from '@/utils/color-utils'; // Import color utils
+import { hslToHex, hexToHsl } from '@/utils/color-utils';
 
 type ValidationSchema = {
   nomeEmpresa: (value: string) => string | null;
@@ -27,11 +27,11 @@ type ValidationSchema = {
   publicPageWelcomeMessage?: (value: string) => string | null;
   publicPagePrimaryColor?: (value: string) => string | null;
   publicPageAccentColor?: (value: string) => string | null;
-  // publicPageSlug?: (value: string) => string | null; // Validation for slug if implemented
+  publicPageSlug?: (value: string) => string | null;
 };
 
 const HSL_REGEX = /^\d{1,3}\s+\d{1,3}%\s+\d{1,3}%$/;
-// const SLUG_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/; // Basic slug validation
+const SLUG_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 const configValidationSchema: ValidationSchema = {
   nomeEmpresa: (value) => (value && value.trim() ? null : 'Nome da empresa é obrigatório.'),
@@ -40,11 +40,17 @@ const configValidationSchema: ValidationSchema = {
   canalLembretePadrao: (value) => (value ? null : 'Canal de lembrete padrão é obrigatório.'),
   zapiInstancia: (value) => (!value || value.trim().length > 0 ? null : 'ID da Instância Z-API não pode ser apenas espaços em branco.'),
   zapiToken: (value) => (!value || value.trim().length > 0 ? null : 'Token da Instância Z-API não pode ser apenas espaços em branco.'),
-  publicPageTitle: (value) => (value && value.trim() ? null : 'Título da página pública é obrigatório.'),
-  publicPageWelcomeMessage: (value) => (value && value.trim() ? null : 'Mensagem de boas-vindas é obrigatória.'),
+  publicPageTitle: (value) => (!value || (value.trim().length >= 3 && value.trim().length <= 60) ? null : 'Título deve ter entre 3 e 60 caracteres.'),
+  publicPageWelcomeMessage: (value) => (!value || (value.trim().length >= 10 && value.trim().length <= 200) ? null : 'Mensagem deve ter entre 10 e 200 caracteres.'),
   publicPagePrimaryColor: (value) => (!value || HSL_REGEX.test(value) ? null : 'Cor primária deve ser um HSL válido (e.g., "180 100% 25%") ou vazia.'),
   publicPageAccentColor: (value) => (!value || HSL_REGEX.test(value) ? null : 'Cor de destaque deve ser um HSL válido (e.g., "240 100% 27%") ou vazia.'),
-  // publicPageSlug: (value) => (!value || SLUG_REGEX.test(value) ? null : 'Slug deve conter apenas letras minúsculas, números e hífens.'),
+  publicPageSlug: (value) => {
+    if (!value || value.trim() === '') return null; // Slug is optional, allow empty to use UID
+    const trimmedValue = value.trim();
+    if (!SLUG_REGEX.test(trimmedValue)) return 'Use letras minúsculas, números e hífens (não no início/fim, sem ser repetido).';
+    if (trimmedValue.length < 3 || trimmedValue.length > 30) return 'Link deve ter entre 3 e 30 caracteres.';
+    return null;
+  },
 };
 
 const TIMEZONE_OPTIONS = [
@@ -78,7 +84,7 @@ export default function ConfigForm({ initialData, onSubmit }: ConfigFormProps) {
         antecedenciaLembreteHoras: data.antecedenciaLembreteHoras === undefined ? 0 : Number(data.antecedenciaLembreteHoras),
         zapiInstancia: data.zapiInstancia?.trim(),
         zapiToken: data.zapiToken?.trim(),
-        // publicPageSlug: data.publicPageSlug?.trim().toLowerCase(),
+        publicPageSlug: data.publicPageSlug?.trim().toLowerCase() || '', // Send empty if user clears it
       };
       await onSubmit(dataToSubmit as ConfiguracaoEmpresa);
     },
@@ -95,11 +101,11 @@ export default function ConfigForm({ initialData, onSubmit }: ConfigFormProps) {
     setHeroBannerPreview(initialData.heroBannerBase64 || null);
   }, [initialData, setValues]);
 
-  const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>, fieldName: 'logoBase64' | 'heroBannerBase64', setPreview: (value: string | null) => void) => {
+  const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>, fieldName: 'logoBase64' | 'heroBannerBase64', setPreview: (value: string | null) => void, imageType: 'Logo' | 'Banner') => {
     const file = event.target.files?.[0];
     if (file) {
       if (file.size > 2 * 1024 * 1024) { // Max 2MB
-        toast({ variant: "destructive", title: "Arquivo muito grande", description: `O arquivo da imagem deve ser menor que 2MB.` });
+        toast({ variant: "destructive", title: "Arquivo Muito Grande", description: `O arquivo do ${imageType.toLowerCase()} deve ser menor que 2MB.` });
         event.target.value = ""; 
         return;
       }
@@ -108,6 +114,7 @@ export default function ConfigForm({ initialData, onSubmit }: ConfigFormProps) {
         const base64String = reader.result as string;
         handleChange(fieldName, base64String);
         setPreview(base64String);
+        toast({title: `${imageType} Atualizado`, description: `A pré-visualização do ${imageType.toLowerCase()} foi atualizada. Salve as configurações para aplicar.`})
       };
       reader.readAsDataURL(file);
     }
@@ -163,10 +170,11 @@ export default function ConfigForm({ initialData, onSubmit }: ConfigFormProps) {
 
   const publicPageUrl = useMemo(() => {
     if (typeof window !== 'undefined' && user?.uid) {
-      return `${window.location.origin}/publica/${user.uid}`;
+      const slugToUse = values.publicPageSlug?.trim() ? values.publicPageSlug.trim().toLowerCase() : user.uid;
+      return `${window.location.origin}/publica/${slugToUse}`;
     }
     return '';
-  }, [user?.uid]);
+  }, [user?.uid, values.publicPageSlug]);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text).then(() => {
@@ -180,9 +188,9 @@ export default function ConfigForm({ initialData, onSubmit }: ConfigFormProps) {
   const ColorPickerInput = ({
     label,
     name,
-    value, // HSL string
+    value, 
     error,
-    defaultHexForPicker = '#008080' // Default to a teal color for the picker if HSL is empty
+    defaultHexForPicker = '#008080' 
   }: {
     label: string;
     name: keyof ConfiguracaoEmpresa;
@@ -203,14 +211,12 @@ export default function ConfigForm({ initialData, onSubmit }: ConfigFormProps) {
             if (newHsl) {
               handleChange(name, newHsl);
             } else {
-              // Handle potential conversion error, though unlikely with valid hex from picker
-              handleChange(name, ''); // Fallback to empty or keep previous
+              handleChange(name, ''); 
             }
           }}
           className="p-0 w-10 h-10 border-none rounded-md cursor-pointer appearance-none focus:outline-none focus:ring-2 focus:ring-ring bg-transparent"
           style={{ 
             backgroundColor: hslToHex(value || '') || 'transparent',
-            // Add a subtle border to the input itself if you want it always visible
             border: '1px solid hsl(var(--border))' 
           }}
         />
@@ -332,7 +338,28 @@ export default function ConfigForm({ initialData, onSubmit }: ConfigFormProps) {
       <h3 className="text-lg font-medium mb-4 -mt-2">Personalização da Página Pública</h3>
       
        <div className="space-y-2 mb-4">
-          <Label>Link da Sua Página Pública</Label>
+          <Label htmlFor="publicPageSlug">Link Personalizado (Opcional)</Label>
+           <div className="flex items-center space-x-2">
+                <span className="text-sm text-muted-foreground whitespace-nowrap">
+                    {typeof window !== 'undefined' ? `${window.location.origin}/publica/` : '/publica/'}
+                </span>
+                <Input 
+                    id="publicPageSlug" 
+                    name="publicPageSlug" 
+                    value={values.publicPageSlug || ''} 
+                    onChange={handleInputChange}
+                    placeholder={user?.uid.substring(0,10) + '...' || "seu-link-aqui"}
+                    className="flex-1"
+                />
+            </div>
+            {errors.publicPageSlug && <p className="text-sm text-destructive mt-1">{errors.publicPageSlug}</p>}
+             <p className="text-xs text-muted-foreground">
+                Se deixado em branco, seu ID de usuário será usado. Ex: {user?.uid}
+            </p>
+       </div>
+
+        <div className="space-y-2 mb-4">
+          <Label>Link Completo da Sua Página Pública</Label>
           {publicPageUrl ? (
             <div className="flex items-center space-x-2">
               <Input type="text" value={publicPageUrl} readOnly className="bg-muted"/>
@@ -345,9 +372,10 @@ export default function ConfigForm({ initialData, onSubmit }: ConfigFormProps) {
           )}
         </div>
 
+
       <div className="space-y-2">
         <Label htmlFor="logoEmpresa">Logo da Empresa (Opcional, max 2MB)</Label>
-        <Input id="logoEmpresa" type="file" accept="image/png, image/jpeg, image/webp, image/svg+xml" onChange={(e) => handleImageChange(e, 'logoBase64', setLogoPreview)} />
+        <Input id="logoEmpresa" type="file" accept="image/png, image/jpeg, image/webp, image/svg+xml" onChange={(e) => handleImageChange(e, 'logoBase64', setLogoPreview, 'Logo')} />
         {logoPreview ? (
           <div className="mt-2 h-24 w-auto max-w-xs p-2 border rounded-md flex items-center justify-center bg-muted">
              <Image src={logoPreview} alt="Preview do Logo" width={100} height={100} className="object-contain max-h-full max-w-full rounded" data-ai-hint="company logo preview"/>
@@ -361,7 +389,7 @@ export default function ConfigForm({ initialData, onSubmit }: ConfigFormProps) {
 
       <div className="space-y-2 mt-4">
         <Label htmlFor="heroBanner">Banner Principal da Página Pública (Opcional, max 2MB, recomendado 1200x400px)</Label>
-        <Input id="heroBanner" type="file" accept="image/png, image/jpeg, image/webp" onChange={(e) => handleImageChange(e, 'heroBannerBase64', setHeroBannerPreview)} />
+        <Input id="heroBanner" type="file" accept="image/png, image/jpeg, image/webp" onChange={(e) => handleImageChange(e, 'heroBannerBase64', setHeroBannerPreview, 'Banner')} />
         {heroBannerPreview ? (
           <div className="mt-2 h-32 w-auto max-w-md p-2 border rounded-md flex items-center justify-center bg-muted">
              <Image src={heroBannerPreview} alt="Preview do Banner" width={200} height={100} className="object-contain max-h-full max-w-full rounded" data-ai-hint="hero banner preview"/>
@@ -410,3 +438,4 @@ export default function ConfigForm({ initialData, onSubmit }: ConfigFormProps) {
     </form>
   );
 }
+
