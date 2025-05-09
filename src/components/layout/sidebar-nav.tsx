@@ -12,6 +12,7 @@ import {
   BellRing,
   Settings,
   Globe,
+  Calendar as CalendarIcon, // Added CalendarIcon for the new module
   LucideIcon,
 } from 'lucide-react';
 import {
@@ -33,6 +34,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/calendario', label: 'Calendário', icon: CalendarIcon }, // New Calendar link
   { href: '/agendamentos', label: 'Agendamentos', icon: CalendarDays },
   { href: '/servicos', label: 'Serviços', icon: Briefcase },
   { href: '/profissionais', label: 'Profissionais', icon: Users },
@@ -88,3 +90,4 @@ export default function SidebarNav() {
     </SidebarMenu>
   );
 }
+
