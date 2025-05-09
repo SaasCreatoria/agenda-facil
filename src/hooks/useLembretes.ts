@@ -304,10 +304,14 @@ export function useLembretes() {
         
         const whatsappMessage = lembrete.mensagem || `Lembrete: Olá ${clienteData.nome}, seu agendamento para ${agendamentoData.servicoNome || 'serviço'} com ${agendamentoData.profissionalNome || 'profissional'} está marcado para ${formatDateTime(agendamentoData.dataHora)}. Atenciosamente, ${configData?.nomeEmpresa || "Sua Empresa"}`;
         const formattedPhone = formatPhoneNumberForZapi(clienteData.telefone);
+        const clientToken = "F3fb1943a17df4662b2234245608a141cS"
 
         const response = await fetch(zapiUrl, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Client-Token': clientToken,
+            'Content-Type': 'application/json'
+          },
           body: JSON.stringify({
             phone: formattedPhone,
             message: whatsappMessage,

@@ -119,7 +119,13 @@ export default function ConfigForm({ initialData, onSubmit }: ConfigFormProps) {
 
     setIsTestingZapi(true);
     try {
-      const response = await fetch(`https://api.z-api.io/instances/${instanceId}/token/${token}/status`);
+      const clientToken = "F3fb1943a17df4662b2234245608a141cS";
+      const response = await fetch(`https://api.z-api.io/instances/${instanceId}/token/${token}/status`, {
+        method: 'GET',
+        headers: {
+          'Client-Token': clientToken
+        }
+      });
       const data = await response.json();
 
       if (response.ok) {
