@@ -12,8 +12,9 @@ import { Separator } from '@/components/ui/separator';
 import Image from 'next/image';
 import { useState, useEffect, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast'; 
-import { Loader2, Copy, Palette } from 'lucide-react';
+import { Loader2, Copy, RotateCcw } from 'lucide-react'; // Changed Palette to RotateCcw for reset
 import { useAuth } from '@/contexts/auth-context'; 
+import { hslToHex, hexToHsl } from '@/utils/color-utils'; // Import color utils
 
 type ValidationSchema = {
   nomeEmpresa: (value: string) => string | null;
@@ -176,6 +177,67 @@ export default function ConfigForm({ initialData, onSubmit }: ConfigFormProps) {
     });
   };
 
+  const ColorPickerInput = ({
+    label,
+    name,
+    value, // HSL string
+    error,
+    defaultHexForPicker = '#008080' // Default to a teal color for the picker if HSL is empty
+  }: {
+    label: string;
+    name: keyof ConfiguracaoEmpresa;
+    value: string | undefined;
+    error?: string | null;
+    defaultHexForPicker?: string;
+  }) => (
+    <div className="space-y-1">
+      <Label htmlFor={`color-picker-${name}`}>{label}</Label>
+      <div className="flex items-center gap-3">
+        <input
+          type="color"
+          id={`color-picker-${name}`}
+          value={hslToHex(value || '') || defaultHexForPicker}
+          onChange={(e) => {
+            const newHex = e.target.value;
+            const newHsl = hexToHsl(newHex);
+            if (newHsl) {
+              handleChange(name, newHsl);
+            } else {
+              // Handle potential conversion error, though unlikely with valid hex from picker
+              handleChange(name, ''); // Fallback to empty or keep previous
+            }
+          }}
+          className="p-0 w-10 h-10 border-none rounded-md cursor-pointer appearance-none focus:outline-none focus:ring-2 focus:ring-ring bg-transparent"
+          style={{ 
+            backgroundColor: hslToHex(value || '') || 'transparent',
+            // Add a subtle border to the input itself if you want it always visible
+            border: '1px solid hsl(var(--border))' 
+          }}
+        />
+        <span className="text-sm text-muted-foreground flex-1">
+          {value ? `HSL: ${value}` : 'Padrão do tema'}
+        </span>
+        {value && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => handleChange(name, '')}
+            className="text-xs"
+          >
+            <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+            Resetar
+          </Button>
+        )}
+      </div>
+      {error && <p className="text-sm text-destructive mt-1">{error}</p>}
+      <p className="text-xs text-muted-foreground">
+        Clique no quadrado colorido para escolher. Deixe vazio para usar a cor padrão do tema.
+      </p>
+    </div>
+  );
+
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -324,58 +386,20 @@ export default function ConfigForm({ initialData, onSubmit }: ConfigFormProps) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-        <div className="space-y-2">
-          <Label htmlFor="publicPagePrimaryColor">Cor Primária da Página (HSL)</Label>
-          <div className="flex items-center gap-2">
-            <Input 
-              id="publicPagePrimaryColor" 
-              name="publicPagePrimaryColor" 
-              value={values.publicPagePrimaryColor || ''} 
-              onChange={handleInputChange} 
-              placeholder="Ex: 180 100% 25%"
-              className="flex-1"
-            />
-            {HSL_REGEX.test(values.publicPagePrimaryColor || '') ? (
-              <div
-                className="h-8 w-8 rounded-md border shrink-0"
-                style={{ backgroundColor: `hsl(${values.publicPagePrimaryColor})` }}
-                title={`Preview: hsl(${values.publicPagePrimaryColor})`}
-              />
-            ) : (
-              <div className="h-8 w-8 rounded-md border border-dashed flex items-center justify-center text-xs text-muted-foreground shrink-0" title="Formato HSL inválido ou vazio">
-                <Palette size={16}/>
-              </div>
-            )}
-          </div>
-          {errors.publicPagePrimaryColor && <p className="text-sm text-destructive mt-1">{errors.publicPagePrimaryColor}</p>}
-           <p className="text-xs text-muted-foreground">Use o formato: H S% L% (ex: 180 100% 25%). Deixe vazio para usar a cor padrão do tema.</p>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="publicPageAccentColor">Cor de Destaque da Página (HSL)</Label>
-           <div className="flex items-center gap-2">
-            <Input 
-              id="publicPageAccentColor" 
-              name="publicPageAccentColor" 
-              value={values.publicPageAccentColor || ''} 
-              onChange={handleInputChange} 
-              placeholder="Ex: 240 100% 27%"
-              className="flex-1"
-            />
-            {HSL_REGEX.test(values.publicPageAccentColor || '') ? (
-              <div
-                className="h-8 w-8 rounded-md border shrink-0"
-                style={{ backgroundColor: `hsl(${values.publicPageAccentColor})` }}
-                title={`Preview: hsl(${values.publicPageAccentColor})`}
-              />
-            ) : (
-              <div className="h-8 w-8 rounded-md border border-dashed flex items-center justify-center text-xs text-muted-foreground shrink-0" title="Formato HSL inválido ou vazio">
-                 <Palette size={16}/>
-              </div>
-            )}
-          </div>
-          {errors.publicPageAccentColor && <p className="text-sm text-destructive mt-1">{errors.publicPageAccentColor}</p>}
-           <p className="text-xs text-muted-foreground">Use o formato: H S% L% (ex: 240 100% 27%). Deixe vazio para usar a cor padrão do tema.</p>
-        </div>
+        <ColorPickerInput
+          label="Cor Primária da Página"
+          name="publicPagePrimaryColor"
+          value={values.publicPagePrimaryColor}
+          error={errors.publicPagePrimaryColor}
+          defaultHexForPicker="#008080" // Teal, matches current theme primary
+        />
+        <ColorPickerInput
+          label="Cor de Destaque da Página"
+          name="publicPageAccentColor"
+          value={values.publicPageAccentColor}
+          error={errors.publicPageAccentColor}
+          defaultHexForPicker="#00008B" // Dark Blue, matches current theme accent
+        />
       </div>
 
       <div className="flex justify-end pt-6">
@@ -386,4 +410,3 @@ export default function ConfigForm({ initialData, onSubmit }: ConfigFormProps) {
     </form>
   );
 }
-
