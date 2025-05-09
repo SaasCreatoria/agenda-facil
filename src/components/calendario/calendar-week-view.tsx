@@ -20,6 +20,7 @@ import {
   getDay
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useMemo } from 'react'; // Added import for useMemo
 
 interface CalendarWeekViewProps {
   currentDate: Date; // Any date within the week to display
@@ -197,3 +198,4 @@ export default function CalendarWeekView({
     </ScrollArea>
   );
 }
+
