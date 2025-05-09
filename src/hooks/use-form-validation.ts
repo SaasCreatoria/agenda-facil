@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 type ValidationRule<T> = (value: T, allValues?: Record<string, any>) => string | null;
 type ValidationSchema<TFormValues extends Record<string, any>> = {
@@ -26,18 +26,24 @@ export function useFormValidation<TFormValues extends Record<string, any>>({
   const [errors, setErrors] = useState<FormErrors<TFormValues>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const validateField = useCallback(
-    (name: keyof TFormValues, value: TFormValues[keyof TFormValues]) => {
-      const rule = validationSchema[name];
+  // Stable handleChange, only sets values
+  const handleChange = useCallback((name: keyof TFormValues, value: TFormValues[keyof TFormValues]) => {
+    setValues(prevValues => ({ ...prevValues, [name]: value }));
+  }, []); // setValues from useState is stable, so this is stable
+
+  // useEffect for validation, runs when values or validationSchema change
+  useEffect(() => {
+    const newErrors: FormErrors<TFormValues> = {};
+    for (const key in validationSchema) {
+      const fieldName = key as keyof TFormValues;
+      const rule = validationSchema[fieldName];
       if (rule) {
-        const error = rule(value, values);
-        setErrors(prevErrors => ({ ...prevErrors, [name]: error }));
-        return error === null;
+        const error = rule(values[fieldName], values);
+        newErrors[fieldName] = error;
       }
-      return true;
-    },
-    [validationSchema, values]
-  );
+    }
+    setErrors(newErrors);
+  }, [values, validationSchema]);
 
   const validateForm = useCallback(() => {
     let isValid = true;
@@ -56,12 +62,22 @@ export function useFormValidation<TFormValues extends Record<string, any>>({
     setErrors(newErrors);
     return isValid;
   }, [validationSchema, values]);
-
-  const handleChange = (name: keyof TFormValues, value: TFormValues[keyof TFormValues]) => {
-    setValues(prevValues => ({ ...prevValues, [name]: value }));
-    validateField(name, value);
-  };
   
+  // Specific field validation, if needed to be called programmatically
+  const validateField = useCallback(
+    (name: keyof TFormValues, value: TFormValues[keyof TFormValues]) => {
+      const rule = validationSchema[name];
+      if (rule) {
+        const error = rule(value, values);
+        setErrors(prevErrors => ({ ...prevErrors, [name]: error }));
+        return error === null;
+      }
+      return true;
+    },
+    [validationSchema, values] // This depends on values, so it's not stable if values change
+  );
+
+
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = event.target;
     
@@ -70,11 +86,8 @@ export function useFormValidation<TFormValues extends Record<string, any>>({
       processedValue = (event.target as HTMLInputElement).checked;
     } else if (type === 'number') {
       const numValue = parseFloat(value);
-      // If value was empty string and resulted in NaN, store as undefined to allow clearing the field.
-      // Otherwise, store the parsed number (which might be NaN if input was invalid text like "abc").
       processedValue = (value.trim() === '' && isNaN(numValue)) ? undefined : numValue;
     }
-
     handleChange(name as keyof TFormValues, processedValue);
   };
 
@@ -90,22 +103,20 @@ export function useFormValidation<TFormValues extends Record<string, any>>({
   
   const resetForm = useCallback(() => {
     setValues(initialValues);
-    setErrors({});
-    setIsSubmitting(false);
+    // Errors will be recalculated by the useEffect due to values change
   }, [initialValues]);
 
   return {
     values,
     errors,
     isSubmitting,
-    handleChange,
+    handleChange, // Now stable
     handleInputChange,
     handleSubmit,
-    validateField,
-    validateForm,
-    setValues, // Expose setValues for more complex scenarios (e.g. setting multiple fields at once)
-    setErrors, // Expose setErrors for manual error setting
+    validateField, // Kept for explicit validation needs, but be mindful of its dependencies
+    validateForm, 
+    setValues, 
+    setErrors, 
     resetForm,
   };
 }
-

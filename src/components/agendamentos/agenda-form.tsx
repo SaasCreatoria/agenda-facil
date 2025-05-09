@@ -73,15 +73,14 @@ export default function AgendaForm({ initialData, onSubmit, onCancel, servicos, 
     initialValues: initialData 
       ? { 
           ...initialData, 
-          // Ensure dataHora is correctly formatted and all fields for AgendamentoCreateDto are present
           clienteId: (initialData as Agendamento).clienteId || '',
           profissionalId: (initialData as Agendamento).profissionalId || '',
           servicoId: (initialData as Agendamento).servicoId || '',
-          dataHora: initialData.dataHora ? new Date(initialData.dataHora).toISOString().substring(0, 16) : defaultDataHora(),
-          duracaoMinutos: initialData.duracaoMinutos || 0,
+          dataHora: initialData.dataHora ? new Date(new Date(initialData.dataHora).getTime() - (new Date().getTimezoneOffset() * -60000)).toISOString().substring(0, 16) : defaultDataHora(),
+          duracaoMinutos: initialData.duracaoMinutos || 0, 
           status: (initialData as Agendamento).status || 'PENDENTE',
           observacoes: initialData.observacoes || '',
-        } as Agendamento // Cast as Agendamento to satisfy type, knowing some fields might be from DTO
+        } as Agendamento 
       : {
           clienteId: '',
           profissionalId: '',
@@ -103,8 +102,8 @@ export default function AgendaForm({ initialData, onSubmit, onCancel, servicos, 
 
   const [filteredProfissionais, setFilteredProfissionais] = useState<Profissional[]>(profissionais);
 
-  // Memoize handleChange to stabilize it for the useEffect dependency array
-  const memoizedHandleChange = useCallback(handleChange, [handleChange]);
+  // handleChange from useFormValidation is now stable
+  const memoizedHandleChange = handleChange; 
 
   useEffect(() => {
     if (values.servicoId) {
@@ -123,32 +122,35 @@ export default function AgendaForm({ initialData, onSubmit, onCancel, servicos, 
           memoizedHandleChange('duracaoMinutos', 0);
         }
         setFilteredProfissionais(profissionais.filter(p => p.ativo));
-        if (values.profissionalId !== '') {
-          memoizedHandleChange('profissionalId', '');
-        }
+        // No need to clear profissionalId if service becomes invalid, user might re-select service.
+        // If we want to clear it:
+        // if (values.profissionalId !== '') {
+        //   memoizedHandleChange('profissionalId', '');
+        // }
       }
     } else { 
       if (values.duracaoMinutos !== 0) {
         memoizedHandleChange('duracaoMinutos', 0);
       }
       setFilteredProfissionais(profissionais.filter(p => p.ativo));
-      if (values.profissionalId !== '') {
-        memoizedHandleChange('profissionalId', '');
-      }
+      // No need to clear profissionalId if no service selected
+      // if (values.profissionalId !== '') {
+      //   memoizedHandleChange('profissionalId', '');
+      // }
     }
   }, [
-      values.servicoId, 
-      values.profissionalId, // Keep this to react if professional is manually changed
-      values.duracaoMinutos, // Keep this to react if duration is manually changed
+      values.servicoId, // Main trigger
       servicos, 
       profissionais, 
-      memoizedHandleChange // Use the memoized version
+      memoizedHandleChange, // Stable function from useFormValidation
+      values.duracaoMinutos, // To react to external changes or ensure internal logic consistency
+      values.profissionalId // To react to external changes or ensure internal logic consistency
     ]);
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{initialData?.id ? 'Editar Agendamento' : 'Novo Agendamento'}</CardTitle>
+        <CardTitle>{initialData?.id || initialData?.dataHora ? 'Editar Agendamento' : 'Novo Agendamento'}</CardTitle>
         <CardDescription>Preencha os detalhes do agendamento.</CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit}>
@@ -234,7 +236,7 @@ export default function AgendaForm({ initialData, onSubmit, onCancel, servicos, 
         <CardFooter className="flex justify-end space-x-2">
           {onCancel && <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>Cancelar</Button>}
           <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? 'Salvando...' : (initialData?.id ? 'Salvar Alterações' : 'Criar Agendamento')}
+            {isSubmitting ? 'Salvando...' : (initialData?.id || initialData?.dataHora ? 'Salvar Alterações' : 'Criar Agendamento')}
           </Button>
         </CardFooter>
       </form>
