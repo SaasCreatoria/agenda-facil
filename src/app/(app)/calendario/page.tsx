@@ -15,7 +15,7 @@ import AgendaForm from '@/components/agendamentos/agenda-form';
 import { PlusCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { startOfToday, addDays, subDays, addWeeks, subWeeks, addMonths, subMonths, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
+import { startOfToday, addDays, subDays, addWeeks, subWeeks, addMonths, subMonths, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfDay, endOfDay } from 'date-fns';
 
 export type CalendarViewMode = 'day' | 'week' | 'month';
 
@@ -201,3 +201,4 @@ export default function CalendarioPage() {
     </>
   );
 }
+
