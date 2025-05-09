@@ -40,18 +40,17 @@ export default function CalendarDayView({
     // timeSlots.push(format(setMinutes(setHours(date, hour), 30), 'HH:mm')); // If 30-min labels
   }
 
-  const getProfessionalColorClass = (index: number): string => {
-    const colors = [
-      'bg-[hsl(var(--chart-1))]',
-      'bg-[hsl(var(--chart-2))]',
-      'bg-[hsl(var(--chart-3))]',
-      'bg-[hsl(var(--chart-4))]',
-      'bg-[hsl(var(--chart-5))]',
-      'bg-sky-500', // fallback if more than 5 professionals
-      'bg-emerald-500',
-      'bg-rose-500',
-    ];
-    return colors[index % colors.length];
+  const getProfessionalColorClass = (index: number, status: Agendamento['status']): string => {
+    // Colors are now primarily handled by AppointmentEventCard based on status
+    // This function can be kept for fallback or additional styling if needed,
+    // but for now, we will rely on the status-based styling in the card itself.
+    // Example: if you want to add a border color based on professional.
+    // const colors = [
+    //   'border-l-4 border-[hsl(var(--chart-1))]',
+    //   'border-l-4 border-[hsl(var(--chart-2))]',
+    // ];
+    // return colors[index % colors.length];
+    return ''; // No specific class based on professional index for now
   };
 
   const handleSlotClick = (time: string, profissionalId: string) => {
@@ -147,7 +146,7 @@ export default function CalendarDayView({
                       servicos={servicos}
                       configuracao={configuracao}
                       onClick={() => onEditAgendamento(ag)}
-                      className={`${getProfessionalColorClass(profIndex)} text-primary-foreground`}
+                      className={getProfessionalColorClass(profIndex, ag.status)} // Pass status if color logic changes
                       style={{
                         position: 'absolute',
                         top: `${topPosition}px`,

@@ -113,7 +113,8 @@ export default function CalendarioPage() {
       const agDate = new Date(ag.dataHora);
       const isInDateRange = agDate >= dateRange.start && agDate <= dateRange.end;
       const isProfissionalMatch = selectedProfissionalIds.length === 0 || selectedProfissionalIds.includes(ag.profissionalId);
-      return isInDateRange && isProfissionalMatch && ag.status !== 'CANCELADO';
+      // Removed status filter to show all appointments
+      return isInDateRange && isProfissionalMatch; 
     });
   }, [agendamentos, dateRange, selectedProfissionalIds]);
 
@@ -130,7 +131,7 @@ export default function CalendarioPage() {
       case 'day':
         return <CalendarDayView 
                   date={currentDate} 
-                  agendamentos={agendamentosInView} // These are already filtered for the day and selected professionals
+                  agendamentos={agendamentosInView} 
                   profissionais={filteredProfissionais} 
                   servicos={servicos}
                   configuracao={configuracao}
@@ -139,8 +140,8 @@ export default function CalendarioPage() {
                />;
       case 'week':
         return <CalendarWeekView
-                  currentDate={currentDate} // Pass the current date (any date in the week is fine)
-                  agendamentos={agendamentosInView} // These are filtered for the week and selected professionals
+                  currentDate={currentDate} 
+                  agendamentos={agendamentosInView} 
                   profissionais={filteredProfissionais}
                   servicos={servicos}
                   configuracao={configuracao}
@@ -149,10 +150,10 @@ export default function CalendarioPage() {
                 />;
       case 'month':
         return <CalendarMonthView
-                  currentDate={currentDate} // Pass the current date (any date in the month)
-                  agendamentos={agendamentosInView} // Filtered for the month and selected professionals
+                  currentDate={currentDate} 
+                  agendamentos={agendamentosInView} 
                   onDayClick={handleMonthDayClick}
-                  profissionais={filteredProfissionais} // Needed for appointment count per day
+                  profissionais={filteredProfissionais} 
                 />;
       default:
         return null;

@@ -20,7 +20,7 @@ import {
   getDay
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useMemo } from 'react'; // Added import for useMemo
+import { useMemo } from 'react'; 
 
 interface CalendarWeekViewProps {
   currentDate: Date; // Any date within the week to display
@@ -60,13 +60,10 @@ export default function CalendarWeekView({
     return slots;
   }, [currentDate]);
 
-  const getProfessionalColorClass = (index: number): string => {
-    const colors = [
-      'bg-[hsl(var(--chart-1))]', 'bg-[hsl(var(--chart-2))]', 'bg-[hsl(var(--chart-3))]',
-      'bg-[hsl(var(--chart-4))]', 'bg-[hsl(var(--chart-5))]', 'bg-sky-500',
-      'bg-emerald-500', 'bg-rose-500',
-    ];
-    return colors[index % colors.length];
+  const getProfessionalColorClass = (index: number, status: Agendamento['status']): string => {
+    // Colors are now primarily handled by AppointmentEventCard based on status
+    // This function can be kept for fallback or additional styling if needed.
+    return ''; 
   };
 
   const handleSlotClick = (day: Date, time: string, profissionalId: string) => {
@@ -175,7 +172,7 @@ export default function CalendarWeekView({
                           servicos={servicos}
                           configuracao={configuracao}
                           onClick={() => onEditAgendamento(ag)}
-                          className={`${getProfessionalColorClass(profIndex)} text-primary-foreground`}
+                          className={getProfessionalColorClass(profIndex, ag.status)} // Pass status
                           style={{
                             position: 'absolute',
                             top: `${topPosition}px`,
