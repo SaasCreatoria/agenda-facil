@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -37,6 +38,10 @@ export default function PaginaPublicaEmpresa() {
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]); // TODO: Fetch actual testimonials
 
   const [loading, setLoading] = useState(true);
+
+  // Moved useMemo hooks to be called unconditionally before early returns
+  const activeServicos = useMemo(() => servicos.filter(s => s.ativo), [servicos]);
+  const activeProfissionais = useMemo(() => profissionais.filter(p => p.ativo), [profissionais]);
 
   useEffect(() => {
     if (!empresaId) {
@@ -208,9 +213,6 @@ export default function PaginaPublicaEmpresa() {
     );
   }
   
-  // Filtered data for PublicBookingWizard
-  const activeServicos = useMemo(() => servicos.filter(s => s.ativo), [servicos]);
-  const activeProfissionais = useMemo(() => profissionais.filter(p => p.ativo), [profissionais]);
 
   return (
     <>
@@ -332,3 +334,6 @@ export default function PaginaPublicaEmpresa() {
     </>
   );
 }
+
+
+    
