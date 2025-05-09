@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -12,7 +13,7 @@ import PublicBookingWizard from '@/components/public/public-booking-wizard';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Agendamento, AgendamentoCreateDto, Cliente, ClienteCreateDto, ConfiguracaoEmpresa, Servico, Profissional, Testimonial } from '@/types'; 
 import { db } from '@/firebase/config';
-import { collection, doc, getDoc, getDocs, addDoc, query, where, serverTimestamp, Timestamp, collectionGroup } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, addDoc, query, where, serverTimestamp, Timestamp, collectionGroup, orderBy } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { maskCurrency } from '@/utils/helpers';
 
@@ -366,3 +367,4 @@ export default function PaginaPublicaEmpresa() {
   );
 }
     
+
