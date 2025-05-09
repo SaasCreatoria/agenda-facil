@@ -12,8 +12,8 @@ import { Separator } from '@/components/ui/separator';
 import Image from 'next/image';
 import { useState, useEffect, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast'; 
-import { Loader2, Copy } from 'lucide-react';
-import { useAuth } from '@/contexts/auth-context'; // For displaying public URL
+import { Loader2, Copy, Palette } from 'lucide-react';
+import { useAuth } from '@/contexts/auth-context'; 
 
 type ValidationSchema = {
   nomeEmpresa: (value: string) => string | null;
@@ -127,7 +127,7 @@ export default function ConfigForm({ initialData, onSubmit }: ConfigFormProps) {
 
     setIsTestingZapi(true);
     try {
-      const clientToken = "F3fb1943a17df4662b2234245608a141cS"; // This seems to be a fixed client token for Z-API
+      const clientToken = "F3fb1943a17df4662b2234245608a141cS"; 
       const response = await fetch(`https://api.z-api.io/instances/${instanceId}/token/${token}/status`, {
         method: 'GET',
         headers: {
@@ -281,22 +281,6 @@ export default function ConfigForm({ initialData, onSubmit }: ConfigFormProps) {
           ) : (
             <p className="text-sm text-muted-foreground">Carregando link...</p>
           )}
-           {/* <div className="mt-2 space-y-2">
-            <Label htmlFor="publicPageSlug">Slug da Página Pública (Opcional)</Label>
-            <div className="flex items-center">
-              <span className="text-sm text-muted-foreground mr-1">{typeof window !== 'undefined' ? `${window.location.origin}/publica/` : '.../'}</span>
-              <Input 
-                id="publicPageSlug" 
-                name="publicPageSlug" 
-                value={values.publicPageSlug || ''} 
-                onChange={handleInputChange} 
-                placeholder="ex: nome-do-seu-negocio" 
-                className="flex-1"
-              />
-            </div>
-            {errors.publicPageSlug && <p className="text-sm text-destructive mt-1">{errors.publicPageSlug}</p>}
-            <p className="text-xs text-muted-foreground">Se deixado em branco, usará um identificador padrão. Use apenas letras minúsculas, números e hífens.</p>
-          </div> */}
         </div>
 
       <div className="space-y-2">
@@ -342,16 +326,57 @@ export default function ConfigForm({ initialData, onSubmit }: ConfigFormProps) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
         <div className="space-y-2">
           <Label htmlFor="publicPagePrimaryColor">Cor Primária da Página (HSL)</Label>
-          <Input id="publicPagePrimaryColor" name="publicPagePrimaryColor" value={values.publicPagePrimaryColor || ''} onChange={handleInputChange} placeholder="Ex: 180 100% 25% (deixe vazio para padrão)"/>
+          <div className="flex items-center gap-2">
+            <Input 
+              id="publicPagePrimaryColor" 
+              name="publicPagePrimaryColor" 
+              value={values.publicPagePrimaryColor || ''} 
+              onChange={handleInputChange} 
+              placeholder="Ex: 180 100% 25%"
+              className="flex-1"
+            />
+            {HSL_REGEX.test(values.publicPagePrimaryColor || '') ? (
+              <div
+                className="h-8 w-8 rounded-md border shrink-0"
+                style={{ backgroundColor: `hsl(${values.publicPagePrimaryColor})` }}
+                title={`Preview: hsl(${values.publicPagePrimaryColor})`}
+              />
+            ) : (
+              <div className="h-8 w-8 rounded-md border border-dashed flex items-center justify-center text-xs text-muted-foreground shrink-0" title="Formato HSL inválido ou vazio">
+                <Palette size={16}/>
+              </div>
+            )}
+          </div>
           {errors.publicPagePrimaryColor && <p className="text-sm text-destructive mt-1">{errors.publicPagePrimaryColor}</p>}
+           <p className="text-xs text-muted-foreground">Use o formato: H S% L% (ex: 180 100% 25%). Deixe vazio para usar a cor padrão do tema.</p>
         </div>
         <div className="space-y-2">
           <Label htmlFor="publicPageAccentColor">Cor de Destaque da Página (HSL)</Label>
-          <Input id="publicPageAccentColor" name="publicPageAccentColor" value={values.publicPageAccentColor || ''} onChange={handleInputChange} placeholder="Ex: 240 100% 27% (deixe vazio para padrão)"/>
+           <div className="flex items-center gap-2">
+            <Input 
+              id="publicPageAccentColor" 
+              name="publicPageAccentColor" 
+              value={values.publicPageAccentColor || ''} 
+              onChange={handleInputChange} 
+              placeholder="Ex: 240 100% 27%"
+              className="flex-1"
+            />
+            {HSL_REGEX.test(values.publicPageAccentColor || '') ? (
+              <div
+                className="h-8 w-8 rounded-md border shrink-0"
+                style={{ backgroundColor: `hsl(${values.publicPageAccentColor})` }}
+                title={`Preview: hsl(${values.publicPageAccentColor})`}
+              />
+            ) : (
+              <div className="h-8 w-8 rounded-md border border-dashed flex items-center justify-center text-xs text-muted-foreground shrink-0" title="Formato HSL inválido ou vazio">
+                 <Palette size={16}/>
+              </div>
+            )}
+          </div>
           {errors.publicPageAccentColor && <p className="text-sm text-destructive mt-1">{errors.publicPageAccentColor}</p>}
+           <p className="text-xs text-muted-foreground">Use o formato: H S% L% (ex: 240 100% 27%). Deixe vazio para usar a cor padrão do tema.</p>
         </div>
       </div>
-
 
       <div className="flex justify-end pt-6">
         <Button type="submit" disabled={isSubmitting || isTestingZapi}>
