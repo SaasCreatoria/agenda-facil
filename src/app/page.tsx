@@ -30,17 +30,17 @@ export default function LandingPage() {
         <TestimonialsSection />
         <PricingSection />
         
-        <section className="w-full py-12 md:py-24 lg:py-32 bg-gradient-to-br from-primary/10 via-background to-secondary/10">
+        <section className="w-full py-12 sm:py-16 md:py-20 lg:py-24 bg-gradient-to-br from-primary/10 via-background to-secondary/10">
           <div className="container grid items-center justify-center gap-4 px-4 text-center md:px-6">
             <div className="space-y-3">
-              <h2 className="text-3xl font-bold tracking-tighter text-primary md:text-4xl/tight">
+              <h2 className="text-2xl font-bold tracking-tighter text-primary sm:text-3xl md:text-4xl/tight">
                 Transforme sua Gestão Agora Mesmo!
               </h2>
-              <p className="mx-auto max-w-[700px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
+              <p className="mx-auto max-w-[700px] text-base text-muted-foreground sm:text-lg md:text-xl/relaxed">
                 Descubra como o Agenda Fácil pode revolucionar a organização do seu negócio. Teste gratuitamente e veja a diferença.
               </p>
             </div>
-            <div className="mx-auto w-full max-w-sm space-y-2">
+            <div className="mx-auto w-full max-w-xs sm:max-w-sm space-y-2">
               {!loadingAuth && (
                 user ? (
                   <Button asChild size="lg" className="w-full group bg-primary hover:bg-primary/90 text-primary-foreground">
@@ -70,4 +70,3 @@ export default function LandingPage() {
     </div>
   );
 }
-
