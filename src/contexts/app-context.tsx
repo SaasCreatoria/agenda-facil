@@ -3,13 +3,14 @@
 
 import type { ReactNode } from 'react';
 import { createContext, useContext, useEffect, useMemo } from 'react';
-import type { Agendamento, Servico, Profissional, Cliente, Lembrete, ConfiguracaoEmpresa, AgendamentoCreateDto, ServicoCreateDto, ProfissionalCreateDto, ClienteCreateDto, LembreteUpdateDto } from '@/types';
+import type { Agendamento, Servico, Profissional, Cliente, Lembrete, ConfiguracaoEmpresa, AgendamentoCreateDto, ServicoCreateDto, ProfissionalCreateDto, ClienteCreateDto, LembreteUpdateDto, Testimonial, TestimonialCreateDto } from '@/types';
 import { useAgendamentos } from '@/hooks/useAgendamentos';
 import { useServicos } from '@/hooks/useServicos';
 import { useProfissionais } from '@/hooks/useProfissionais';
 import { useClientes } from '@/hooks/useClientes';
 import { useLembretes } from '@/hooks/useLembretes';
 import { useConfiguracao } from '@/hooks/useConfiguracao';
+import { useTestimonials } from '@/hooks/useTestimonials'; // Import useTestimonials
 
 interface AppContextType {
   // Agendamentos
@@ -61,25 +62,31 @@ interface AppContextType {
   getLembreteById: (id: string) => Lembrete | undefined;
   sendReminder: (lembrete: Lembrete) => Promise<void>;
 
-
   // Configuração
   configuracao: ConfiguracaoEmpresa;
   loadingConfiguracao: boolean;
   loadConfiguracao: () => void;
   updateConfiguracao: (newConfig: Partial<ConfiguracaoEmpresa>) => Promise<void>;
+
+  // Testimonials (for admin management)
+  testimonials: Testimonial[];
+  loadingTestimonials: boolean;
+  loadTestimonials: () => void; // Will load for the logged-in user's empresaId
+  createTestimonial: (data: TestimonialCreateDto) => Promise<Testimonial | null>;
+  updateTestimonial: (id: string, updates: Partial<Omit<Testimonial, 'id' | 'empresaId' | 'data'>>) => Promise<Testimonial | null>;
+  removeTestimonial: (id: string) => Promise<boolean>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  // Initialize hooks that don't depend on others first
   const configuracaoState = useConfiguracao();
   const servicosState = useServicos();
   const profissionaisState = useProfissionais();
   const clientesState = useClientes();
-  const lembretesState = useLembretes(); // Lembretes hook doesn't depend on agendamentos for its own state
+  const lembretesState = useLembretes();
+  const testimonialsState = useTestimonials(); // Loads testimonials for logged-in user by default
 
-  // Memoize the services object to pass to useAgendamentos
   const agendamentoServices = useMemo(() => ({
     createLembrete: lembretesState.createLembrete,
     getServicoById: servicosState.getServicoById,
@@ -92,11 +99,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     clientesState.getClienteById,
   ]);
   
-  // Initialize useAgendamentos with the memoized services
   const agendamentosState = useAgendamentos(agendamentoServices);
 
-
-  // Wrapper functions for create/update agendamento to pass current config
   const createAgendamentoWithConfig = (data: AgendamentoCreateDto) => {
     return agendamentosState.createAgendamento(data, configuracaoState.configuracao);
   };
@@ -104,13 +108,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return agendamentosState.updateAgendamento(id, updates, configuracaoState.configuracao);
   };
   
-  // Effect to monitor lembretes and send them
   useEffect(() => {
     if (lembretesState.loading || configuracaoState.loadingConfiguracao) return;
 
     const checkAndSendReminders = () => {
       const now = new Date();
-      // Find the first lembrete that needs processing to avoid multiple rapid updates
       const lembreteToSend = lembretesState.lembretes.find(lembrete => 
         lembrete.status === 'PENDENTE' && 
         new Date(lembrete.dataEnvioAgendado).getTime() <= now.getTime()
@@ -176,6 +178,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     loadingConfiguracao: configuracaoState.loadingConfiguracao, 
     loadConfiguracao: configuracaoState.loadConfiguracao,
     updateConfiguracao: configuracaoState.updateConfiguracao,
+
+    testimonials: testimonialsState.testimonials,
+    loadingTestimonials: testimonialsState.loadingTestimonials,
+    loadTestimonials: testimonialsState.loadTestimonials,
+    createTestimonial: testimonialsState.createTestimonial,
+    updateTestimonial: testimonialsState.updateTestimonial,
+    removeTestimonial: testimonialsState.removeTestimonial,
   };
 
   return <AppContext.Provider value={contextValue}>{children}</AppContext.Provider>;
@@ -188,4 +197,3 @@ export function useAppContext() {
   }
   return context;
 }
-

@@ -72,6 +72,7 @@ export interface Lembrete extends Identifiable {
 export interface ConfiguracaoEmpresa {
   nomeEmpresa: string;
   logoBase64?: string;
+  heroBannerBase64?: string; // For public landing page
   fusoHorario: string; // IANA timezone name e.g., "America/Sao_Paulo"
   antecedenciaLembreteHoras: number; // e.g., 24 for 24 hours before
   canalLembretePadrao: LembreteTipo;
@@ -83,8 +84,18 @@ export interface ConfiguracaoEmpresa {
   publicPageWelcomeMessage?: string;
   publicPagePrimaryColor?: string; // HSL string, e.g., "210 40% 96%"
   publicPageAccentColor?: string; // HSL string
+  publicPageSlug?: string; // User-defined slug for their public page
   criadoEm?: any; // Timestamp for Firestore
   atualizadoEm?: any; // Timestamp for Firestore
+}
+
+export interface Testimonial extends Identifiable {
+  empresaId: string; 
+  clienteNome: string;
+  comentario: string;
+  rating: number; // 1-5, e.g., 1, 2, 3, 4, 5
+  data: string; // ISO string for when the testimonial was given
+  // fotoClienteUrl?: string; // Optional URL to an image of the client
 }
 
 // DTOs for creation - excluding id and audit fields
@@ -93,8 +104,7 @@ export type ServicoCreateDto = Omit<Servico, 'id' | 'criadoEm' | 'atualizadoEm'>
 export type ProfissionalCreateDto = Omit<Profissional, 'id' | 'criadoEm' | 'atualizadoEm'>;
 export type ClienteCreateDto = Omit<Cliente, 'id' | 'criadoEm' | 'atualizadoEm'>;
 export type LembreteCreateDto = Omit<Lembrete, 'id' | 'criadoEm' | 'atualizadoEm'>;
+export type TestimonialCreateDto = Omit<Testimonial, 'id' | 'empresaId' | 'data'>; // empresaId and data will be set by the system
 
 // DTO for updates
 export type LembreteUpdateDto = Partial<Pick<Lembrete, 'tipo' | 'dataEnvioAgendado' | 'mensagem' | 'status'>>;
-
-

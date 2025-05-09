@@ -11,6 +11,7 @@ import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 const DEFAULT_CONFIG: ConfiguracaoEmpresa = {
   nomeEmpresa: 'Agenda Fácil',
   logoBase64: '',
+  heroBannerBase64: '', // Added
   fusoHorario: 'America/Sao_Paulo',
   antecedenciaLembreteHoras: 24,
   canalLembretePadrao: 'EMAIL',
@@ -20,6 +21,7 @@ const DEFAULT_CONFIG: ConfiguracaoEmpresa = {
   publicPageWelcomeMessage: 'Rápido, fácil e seguro.',
   publicPagePrimaryColor: '', 
   publicPageAccentColor: '', 
+  publicPageSlug: '', // Added
   criadoEm: new Date().toISOString(), 
   atualizadoEm: new Date().toISOString(), 
 };
@@ -55,12 +57,14 @@ export function useConfiguracao() {
       } else {
         const initialConfigToSave = {
           ...DEFAULT_CONFIG,
+          publicPageSlug: user.uid, // Default slug to user's UID
           criadoEm: serverTimestamp(),
           atualizadoEm: serverTimestamp(),
         };
         await setDoc(configDocRef, initialConfigToSave);
         setConfiguracao({
             ...DEFAULT_CONFIG,
+            publicPageSlug: user.uid,
             criadoEm: new Date().toISOString(), 
             atualizadoEm: new Date().toISOString(), 
         }); 
@@ -86,15 +90,20 @@ export function useConfiguracao() {
     }
     try {
       const configDocRef = doc(db, 'users', user.uid, 'configuracao', CONFIG_DOC_ID);
-      const configToUpdate = {
+      const configToUpdate: any = { // Use any to avoid TS complaining about serverTimestamp
         ...newConfig,
         atualizadoEm: serverTimestamp(),
       };
+      if (newConfig.publicPageSlug) { // Ensure slug is lowercase and trimmed
+        configToUpdate.publicPageSlug = newConfig.publicPageSlug.trim().toLowerCase();
+      }
+
       await setDoc(configDocRef, configToUpdate, { merge: true });
       
       setConfiguracao(prev => ({ 
         ...prev, 
         ...newConfig,
+        ...(configToUpdate.publicPageSlug && { publicPageSlug: configToUpdate.publicPageSlug }),
         atualizadoEm: new Date().toISOString() 
       }));
       toast({ title: 'Configuração salva', description: 'Suas configurações foram atualizadas.' });

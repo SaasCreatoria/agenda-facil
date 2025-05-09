@@ -10,9 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import Image from 'next/image';
-import { useState, useEffect } from 'react';
-import { useToast } from '@/hooks/use-toast'; // Import useToast
-import { Loader2 } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { useToast } from '@/hooks/use-toast'; 
+import { Loader2, Copy } from 'lucide-react';
+import { useAuth } from '@/contexts/auth-context'; // For displaying public URL
 
 type ValidationSchema = {
   nomeEmpresa: (value: string) => string | null;
@@ -25,9 +26,11 @@ type ValidationSchema = {
   publicPageWelcomeMessage?: (value: string) => string | null;
   publicPagePrimaryColor?: (value: string) => string | null;
   publicPageAccentColor?: (value: string) => string | null;
+  // publicPageSlug?: (value: string) => string | null; // Validation for slug if implemented
 };
 
 const HSL_REGEX = /^\d{1,3}\s+\d{1,3}%\s+\d{1,3}%$/;
+// const SLUG_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/; // Basic slug validation
 
 const configValidationSchema: ValidationSchema = {
   nomeEmpresa: (value) => (value && value.trim() ? null : 'Nome da empresa é obrigatório.'),
@@ -40,6 +43,7 @@ const configValidationSchema: ValidationSchema = {
   publicPageWelcomeMessage: (value) => (value && value.trim() ? null : 'Mensagem de boas-vindas é obrigatória.'),
   publicPagePrimaryColor: (value) => (!value || HSL_REGEX.test(value) ? null : 'Cor primária deve ser um HSL válido (e.g., "180 100% 25%") ou vazia.'),
   publicPageAccentColor: (value) => (!value || HSL_REGEX.test(value) ? null : 'Cor de destaque deve ser um HSL válido (e.g., "240 100% 27%") ou vazia.'),
+  // publicPageSlug: (value) => (!value || SLUG_REGEX.test(value) ? null : 'Slug deve conter apenas letras minúsculas, números e hífens.'),
 };
 
 const TIMEZONE_OPTIONS = [
@@ -63,6 +67,7 @@ interface ConfigFormProps {
 }
 
 export default function ConfigForm({ initialData, onSubmit }: ConfigFormProps) {
+  const { user } = useAuth();
   const { values, errors, handleChange, handleInputChange, handleSubmit, isSubmitting, setValues } = useFormValidation<ConfiguracaoEmpresa>({
     initialValues: initialData,
     validationSchema: configValidationSchema as any,
@@ -72,33 +77,36 @@ export default function ConfigForm({ initialData, onSubmit }: ConfigFormProps) {
         antecedenciaLembreteHoras: data.antecedenciaLembreteHoras === undefined ? 0 : Number(data.antecedenciaLembreteHoras),
         zapiInstancia: data.zapiInstancia?.trim(),
         zapiToken: data.zapiToken?.trim(),
+        // publicPageSlug: data.publicPageSlug?.trim().toLowerCase(),
       };
       await onSubmit(dataToSubmit as ConfiguracaoEmpresa);
     },
   });
 
   const [logoPreview, setLogoPreview] = useState<string | null>(initialData.logoBase64 || null);
+  const [heroBannerPreview, setHeroBannerPreview] = useState<string | null>(initialData.heroBannerBase64 || null);
   const [isTestingZapi, setIsTestingZapi] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     setValues(initialData); 
     setLogoPreview(initialData.logoBase64 || null);
+    setHeroBannerPreview(initialData.heroBannerBase64 || null);
   }, [initialData, setValues]);
 
-  const handleLogoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>, fieldName: 'logoBase64' | 'heroBannerBase64', setPreview: (value: string | null) => void) => {
     const file = event.target.files?.[0];
     if (file) {
-      if (file.size > 2 * 1024 * 1024) { // Max 2MB for logo
-        alert("O arquivo da logo deve ser menor que 2MB.");
+      if (file.size > 2 * 1024 * 1024) { // Max 2MB
+        toast({ variant: "destructive", title: "Arquivo muito grande", description: `O arquivo da imagem deve ser menor que 2MB.` });
         event.target.value = ""; 
         return;
       }
       const reader = new FileReader();
       reader.onloadend = () => {
         const base64String = reader.result as string;
-        handleChange('logoBase64', base64String);
-        setLogoPreview(base64String);
+        handleChange(fieldName, base64String);
+        setPreview(base64String);
       };
       reader.readAsDataURL(file);
     }
@@ -119,7 +127,7 @@ export default function ConfigForm({ initialData, onSubmit }: ConfigFormProps) {
 
     setIsTestingZapi(true);
     try {
-      const clientToken = "F3fb1943a17df4662b2234245608a141cS";
+      const clientToken = "F3fb1943a17df4662b2234245608a141cS"; // This seems to be a fixed client token for Z-API
       const response = await fetch(`https://api.z-api.io/instances/${instanceId}/token/${token}/status`, {
         method: 'GET',
         headers: {
@@ -152,6 +160,21 @@ export default function ConfigForm({ initialData, onSubmit }: ConfigFormProps) {
     }
   };
 
+  const publicPageUrl = useMemo(() => {
+    if (typeof window !== 'undefined' && user?.uid) {
+      return `${window.location.origin}/publica/${user.uid}`;
+    }
+    return '';
+  }, [user?.uid]);
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      toast({ title: "Link Copiado!", description: "O link da sua página pública foi copiado." });
+    }).catch(err => {
+      toast({ variant: "destructive", title: "Erro ao copiar", description: "Não foi possível copiar o link." });
+      console.error('Failed to copy: ', err);
+    });
+  };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -171,21 +194,6 @@ export default function ConfigForm({ initialData, onSubmit }: ConfigFormProps) {
           </Select>
           {errors.fusoHorario && <p className="text-sm text-destructive mt-1">{errors.fusoHorario}</p>}
         </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="logoEmpresa">Logo da Empresa (Opcional, max 2MB)</Label>
-        <Input id="logoEmpresa" type="file" accept="image/png, image/jpeg, image/webp, image/svg+xml" onChange={handleLogoChange} />
-        {logoPreview && (
-          <div className="mt-2 h-24 w-auto max-w-xs p-2 border rounded-md flex items-center justify-center bg-muted">
-             <Image src={logoPreview} alt="Preview do Logo" width={100} height={100} className="object-contain max-h-full max-w-full rounded" data-ai-hint="company logo preview"/>
-          </div>
-        )}
-        {!logoPreview && (
-            <div className="mt-2 h-24 w-24 bg-muted rounded-md flex items-center justify-center text-sm text-muted-foreground" data-ai-hint="logo placeholder">
-              Preview
-            </div>
-        )}
       </div>
       
       <Separator className="my-6" />
@@ -258,37 +266,94 @@ export default function ConfigForm({ initialData, onSubmit }: ConfigFormProps) {
             </p>
        </div>
 
-
       <Separator className="my-6" />
       <h3 className="text-lg font-medium mb-4 -mt-2">Personalização da Página Pública</h3>
       
+       <div className="space-y-2 mb-4">
+          <Label>Link da Sua Página Pública</Label>
+          {publicPageUrl ? (
+            <div className="flex items-center space-x-2">
+              <Input type="text" value={publicPageUrl} readOnly className="bg-muted"/>
+              <Button type="button" variant="outline" size="icon" onClick={() => copyToClipboard(publicPageUrl)} aria-label="Copiar link">
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Carregando link...</p>
+          )}
+           {/* <div className="mt-2 space-y-2">
+            <Label htmlFor="publicPageSlug">Slug da Página Pública (Opcional)</Label>
+            <div className="flex items-center">
+              <span className="text-sm text-muted-foreground mr-1">{typeof window !== 'undefined' ? `${window.location.origin}/publica/` : '.../'}</span>
+              <Input 
+                id="publicPageSlug" 
+                name="publicPageSlug" 
+                value={values.publicPageSlug || ''} 
+                onChange={handleInputChange} 
+                placeholder="ex: nome-do-seu-negocio" 
+                className="flex-1"
+              />
+            </div>
+            {errors.publicPageSlug && <p className="text-sm text-destructive mt-1">{errors.publicPageSlug}</p>}
+            <p className="text-xs text-muted-foreground">Se deixado em branco, usará um identificador padrão. Use apenas letras minúsculas, números e hífens.</p>
+          </div> */}
+        </div>
+
       <div className="space-y-2">
+        <Label htmlFor="logoEmpresa">Logo da Empresa (Opcional, max 2MB)</Label>
+        <Input id="logoEmpresa" type="file" accept="image/png, image/jpeg, image/webp, image/svg+xml" onChange={(e) => handleImageChange(e, 'logoBase64', setLogoPreview)} />
+        {logoPreview ? (
+          <div className="mt-2 h-24 w-auto max-w-xs p-2 border rounded-md flex items-center justify-center bg-muted">
+             <Image src={logoPreview} alt="Preview do Logo" width={100} height={100} className="object-contain max-h-full max-w-full rounded" data-ai-hint="company logo preview"/>
+          </div>
+        ) : (
+            <div className="mt-2 h-24 w-24 bg-muted rounded-md flex items-center justify-center text-sm text-muted-foreground" data-ai-hint="logo placeholder">
+              Logo
+            </div>
+        )}
+      </div>
+
+      <div className="space-y-2 mt-4">
+        <Label htmlFor="heroBanner">Banner Principal da Página Pública (Opcional, max 2MB, recomendado 1200x400px)</Label>
+        <Input id="heroBanner" type="file" accept="image/png, image/jpeg, image/webp" onChange={(e) => handleImageChange(e, 'heroBannerBase64', setHeroBannerPreview)} />
+        {heroBannerPreview ? (
+          <div className="mt-2 h-32 w-auto max-w-md p-2 border rounded-md flex items-center justify-center bg-muted">
+             <Image src={heroBannerPreview} alt="Preview do Banner" width={200} height={100} className="object-contain max-h-full max-w-full rounded" data-ai-hint="hero banner preview"/>
+          </div>
+        ) : (
+            <div className="mt-2 h-32 w-full max-w-md bg-muted rounded-md flex items-center justify-center text-sm text-muted-foreground" data-ai-hint="banner placeholder">
+              Banner
+            </div>
+        )}
+      </div>
+      
+      <div className="space-y-2 mt-4">
         <Label htmlFor="publicPageTitle">Título da Página Pública</Label>
         <Input id="publicPageTitle" name="publicPageTitle" value={values.publicPageTitle || ''} onChange={handleInputChange} />
         {errors.publicPageTitle && <p className="text-sm text-destructive mt-1">{errors.publicPageTitle}</p>}
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-2 mt-4">
         <Label htmlFor="publicPageWelcomeMessage">Mensagem de Boas-vindas</Label>
         <Textarea id="publicPageWelcomeMessage" name="publicPageWelcomeMessage" value={values.publicPageWelcomeMessage || ''} onChange={handleInputChange} placeholder="Uma breve mensagem para seus clientes..."/>
         {errors.publicPageWelcomeMessage && <p className="text-sm text-destructive mt-1">{errors.publicPageWelcomeMessage}</p>}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
         <div className="space-y-2">
-          <Label htmlFor="publicPagePrimaryColor">Cor Primária (HSL)</Label>
+          <Label htmlFor="publicPagePrimaryColor">Cor Primária da Página (HSL)</Label>
           <Input id="publicPagePrimaryColor" name="publicPagePrimaryColor" value={values.publicPagePrimaryColor || ''} onChange={handleInputChange} placeholder="Ex: 180 100% 25% (deixe vazio para padrão)"/>
           {errors.publicPagePrimaryColor && <p className="text-sm text-destructive mt-1">{errors.publicPagePrimaryColor}</p>}
         </div>
         <div className="space-y-2">
-          <Label htmlFor="publicPageAccentColor">Cor de Destaque (HSL)</Label>
+          <Label htmlFor="publicPageAccentColor">Cor de Destaque da Página (HSL)</Label>
           <Input id="publicPageAccentColor" name="publicPageAccentColor" value={values.publicPageAccentColor || ''} onChange={handleInputChange} placeholder="Ex: 240 100% 27% (deixe vazio para padrão)"/>
           {errors.publicPageAccentColor && <p className="text-sm text-destructive mt-1">{errors.publicPageAccentColor}</p>}
         </div>
       </div>
 
 
-      <div className="flex justify-end pt-4">
+      <div className="flex justify-end pt-6">
         <Button type="submit" disabled={isSubmitting || isTestingZapi}>
             {isSubmitting ? 'Salvando...' : 'Salvar Configurações'}
         </Button>
