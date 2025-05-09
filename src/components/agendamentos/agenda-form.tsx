@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import type { Agendamento, AgendamentoCreateDto, Servico, Profissional, Cliente } from '@/types';
@@ -9,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 
 type ValidationSchema = {
   clienteId: (value: string) => string | null;
@@ -33,7 +34,7 @@ const agendaValidationSchema: ValidationSchema = {
 
 
 interface AgendaFormProps {
-  initialData?: Agendamento;
+  initialData?: Agendamento | Partial<AgendamentoCreateDto>; // Allow partial for calendar slot clicks
   onSubmit: (data: AgendamentoCreateDto | Agendamento) => Promise<void>;
   onCancel?: () => void;
   servicos: Servico[];
@@ -42,23 +43,45 @@ interface AgendaFormProps {
 }
 
 export default function AgendaForm({ initialData, onSubmit, onCancel, servicos, profissionais, clientes }: AgendaFormProps) {
-  const defaultDataHora = () => {
+  const defaultDataHora = useCallback(() => {
       const now = new Date();
-      now.setHours(now.getHours() + 1);
-      if (now.getMinutes() < 30) now.setMinutes(30);
-      else {
+      // If it's for today, set to next available half-hour or hour, at least 1 hour in future
+      // Otherwise, default to 09:00 of the provided date or tomorrow
+      if (initialData?.dataHora && new Date(initialData.dataHora).toDateString() === now.toDateString()) {
         now.setHours(now.getHours() + 1);
-        now.setMinutes(0);
+        if (now.getMinutes() < 30) now.setMinutes(30);
+        else {
+            now.setHours(now.getHours() + 1);
+            now.setMinutes(0);
+        }
+      } else if (initialData?.dataHora) {
+        const initialDate = new Date(initialData.dataHora);
+        // Use the date part from initialData, but set time to 09:00
+        return new Date(initialDate.getFullYear(), initialDate.getMonth(), initialDate.getDate(), 9, 0, 0).toISOString().substring(0,16);
+      } else {
+         // Default to tomorrow 09:00 if no date is provided
+        now.setDate(now.getDate() + 1);
+        return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 9, 0, 0).toISOString().substring(0,16);
       }
       now.setSeconds(0);
       now.setMilliseconds(0);
       return now.toISOString().substring(0, 16);
-  }
+  }, [initialData?.dataHora]);
 
 
   const { values, errors, handleChange, handleInputChange, handleSubmit, isSubmitting, setValues } = useFormValidation<AgendamentoCreateDto | Agendamento>({
     initialValues: initialData 
-      ? { ...initialData, dataHora: new Date(initialData.dataHora).toISOString().substring(0, 16) } 
+      ? { 
+          ...initialData, 
+          // Ensure dataHora is correctly formatted and all fields for AgendamentoCreateDto are present
+          clienteId: (initialData as Agendamento).clienteId || '',
+          profissionalId: (initialData as Agendamento).profissionalId || '',
+          servicoId: (initialData as Agendamento).servicoId || '',
+          dataHora: initialData.dataHora ? new Date(initialData.dataHora).toISOString().substring(0, 16) : defaultDataHora(),
+          duracaoMinutos: initialData.duracaoMinutos || 0,
+          status: (initialData as Agendamento).status || 'PENDENTE',
+          observacoes: initialData.observacoes || '',
+        } as Agendamento // Cast as Agendamento to satisfy type, knowing some fields might be from DTO
       : {
           clienteId: '',
           profissionalId: '',
@@ -80,53 +103,52 @@ export default function AgendaForm({ initialData, onSubmit, onCancel, servicos, 
 
   const [filteredProfissionais, setFilteredProfissionais] = useState<Profissional[]>(profissionais);
 
+  // Memoize handleChange to stabilize it for the useEffect dependency array
+  const memoizedHandleChange = useCallback(handleChange, [handleChange]);
+
   useEffect(() => {
     if (values.servicoId) {
       const selectedServico = servicos.find(s => s.id === values.servicoId);
       if (selectedServico) {
         if (values.duracaoMinutos !== selectedServico.duracaoMinutos) {
-          handleChange('duracaoMinutos', selectedServico.duracaoMinutos);
+          memoizedHandleChange('duracaoMinutos', selectedServico.duracaoMinutos);
         }
         const newFilteredProfissionais = profissionais.filter(p => p.servicosIds.includes(values.servicoId) && p.ativo);
         setFilteredProfissionais(newFilteredProfissionais);
         if (values.profissionalId && !newFilteredProfissionais.some(p => p.id === values.profissionalId)) {
-          handleChange('profissionalId', '');
+          memoizedHandleChange('profissionalId', '');
         }
       } else {
-        // servicoId is selected, but service not found (e.g. lists updated)
         if (values.duracaoMinutos !== 0) {
-          handleChange('duracaoMinutos', 0);
+          memoizedHandleChange('duracaoMinutos', 0);
         }
         setFilteredProfissionais(profissionais.filter(p => p.ativo));
         if (values.profissionalId !== '') {
-          handleChange('profissionalId', '');
+          memoizedHandleChange('profissionalId', '');
         }
       }
-    } else { // No servicoId selected
+    } else { 
       if (values.duracaoMinutos !== 0) {
-        handleChange('duracaoMinutos', 0);
+        memoizedHandleChange('duracaoMinutos', 0);
       }
       setFilteredProfissionais(profissionais.filter(p => p.ativo));
       if (values.profissionalId !== '') {
-        handleChange('profissionalId', '');
+        memoizedHandleChange('profissionalId', '');
       }
     }
   }, [
       values.servicoId, 
-      values.profissionalId, 
-      values.duracaoMinutos, 
+      values.profissionalId, // Keep this to react if professional is manually changed
+      values.duracaoMinutos, // Keep this to react if duration is manually changed
       servicos, 
       profissionais, 
-      // handleChange is intentionally omitted here to prevent infinite loops,
-      // as it's an action, not a trigger, and its instance changes frequently.
-      // setValues from useFormValidation is stable if we were to use it directly.
-      setFilteredProfissionais // This is a stable useState setter.
+      memoizedHandleChange // Use the memoized version
     ]);
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{initialData ? 'Editar Agendamento' : 'Novo Agendamento'}</CardTitle>
+        <CardTitle>{initialData?.id ? 'Editar Agendamento' : 'Novo Agendamento'}</CardTitle>
         <CardDescription>Preencha os detalhes do agendamento.</CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit}>
@@ -212,7 +234,7 @@ export default function AgendaForm({ initialData, onSubmit, onCancel, servicos, 
         <CardFooter className="flex justify-end space-x-2">
           {onCancel && <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>Cancelar</Button>}
           <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? 'Salvando...' : (initialData ? 'Salvar Alterações' : 'Criar Agendamento')}
+            {isSubmitting ? 'Salvando...' : (initialData?.id ? 'Salvar Alterações' : 'Criar Agendamento')}
           </Button>
         </CardFooter>
       </form>

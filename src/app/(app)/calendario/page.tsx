@@ -5,9 +5,8 @@ import { useState, useMemo, useCallback } from 'react';
 import PageHeader from '@/components/shared/page-header';
 import CalendarControls from '@/components/calendario/calendar-controls';
 import CalendarDayView from '@/components/calendario/calendar-day-view';
-// Placeholder for Week and Month views
-// import CalendarWeekView from '@/components/calendario/calendar-week-view';
-// import CalendarMonthView from '@/components/calendario/calendar-month-view';
+import CalendarWeekView from '@/components/calendario/calendar-week-view';
+import CalendarMonthView from '@/components/calendario/calendar-month-view';
 import { useAppContext } from '@/contexts/app-context';
 import type { Agendamento, AgendamentoCreateDto, Profissional, Servico } from '@/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -56,7 +55,6 @@ export default function CalendarioPage() {
     setEditingAgendamento(agendamento);
     if (agendamento) {
       const dataHoraUTC = new Date(agendamento.dataHora);
-      // Convert UTC to local for datetime-local input
       const dataHoraLocal = new Date(dataHoraUTC.getTime() - dataHoraUTC.getTimezoneOffset() * -60000).toISOString().substring(0, 16);
       setFormInitialData({ ...agendamento, dataHora: dataHoraLocal });
     } else if (initialSlotData) {
@@ -64,7 +62,7 @@ export default function CalendarioPage() {
        const dataHoraLocal = new Date(dataHoraUTC.getTime() - dataHoraUTC.getTimezoneOffset() * -60000).toISOString().substring(0, 16);
        setFormInitialData({ ...initialSlotData, dataHora: dataHoraLocal });
     } else {
-      setFormInitialData(undefined);
+      setFormInitialData({ dataHora: startOfToday().toISOString().substring(0,10) + "T09:00"});
     }
     setIsFormOpen(true);
   }, []);
@@ -104,10 +102,11 @@ export default function CalendarioPage() {
   
   const dateRange = useMemo(() => {
     if (viewMode === 'day') return { start: startOfDay(currentDate), end: endOfDay(currentDate) };
-    if (viewMode === 'week') return { start: startOfWeek(currentDate, { weekStartsOn: 1 }), end: endOfWeek(currentDate, { weekStartsOn: 1 }) };
+    // Week starts on Monday (1) for pt-BR usually
+    if (viewMode === 'week') return { start: startOfWeek(currentDate, { weekStartsOn: configuracao.fusoHorario === 'America/Sao_Paulo' ? 1:0 }), end: endOfWeek(currentDate, { weekStartsOn: configuracao.fusoHorario === 'America/Sao_Paulo' ? 1:0 }) };
     if (viewMode === 'month') return { start: startOfMonth(currentDate), end: endOfMonth(currentDate) };
     return { start: currentDate, end: currentDate };
-  }, [currentDate, viewMode]);
+  }, [currentDate, viewMode, configuracao.fusoHorario]);
 
   const agendamentosInView = useMemo(() => {
     return agendamentos.filter(ag => {
@@ -118,6 +117,10 @@ export default function CalendarioPage() {
     });
   }, [agendamentos, dateRange, selectedProfissionalIds]);
 
+  const handleMonthDayClick = (date: Date) => {
+    setCurrentDate(date);
+    setViewMode('day');
+  };
 
   const renderView = () => {
     if (isLoading) {
@@ -127,7 +130,7 @@ export default function CalendarioPage() {
       case 'day':
         return <CalendarDayView 
                   date={currentDate} 
-                  agendamentos={agendamentosInView}
+                  agendamentos={agendamentosInView} // These are already filtered for the day and selected professionals
                   profissionais={filteredProfissionais} 
                   servicos={servicos}
                   configuracao={configuracao}
@@ -135,9 +138,22 @@ export default function CalendarioPage() {
                   onCreateAgendamento={(slotData) => handleOpenForm(undefined, slotData)}
                />;
       case 'week':
-        return <div className="p-4 text-center text-muted-foreground">Visualização de Semana (Em breve)</div>; // Placeholder
+        return <CalendarWeekView
+                  currentDate={currentDate} // Pass the current date (any date in the week is fine)
+                  agendamentos={agendamentosInView} // These are filtered for the week and selected professionals
+                  profissionais={filteredProfissionais}
+                  servicos={servicos}
+                  configuracao={configuracao}
+                  onEditAgendamento={handleOpenForm}
+                  onCreateAgendamento={(slotData) => handleOpenForm(undefined, slotData)}
+                />;
       case 'month':
-        return <div className="p-4 text-center text-muted-foreground">Visualização de Mês (Em breve)</div>; // Placeholder
+        return <CalendarMonthView
+                  currentDate={currentDate} // Pass the current date (any date in the month)
+                  agendamentos={agendamentosInView} // Filtered for the month and selected professionals
+                  onDayClick={handleMonthDayClick}
+                  profissionais={filteredProfissionais} // Needed for appointment count per day
+                />;
       default:
         return null;
     }
